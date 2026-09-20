@@ -4,6 +4,8 @@
 
 **A Modern, Privacy-First Local AI Web Interface & Code Assistant powered by Ollama and RAG.**
 
+🌐 **[ENGLISH VERSION AVAILABLE HERE](README.en.md)** • 🇧🇷 **[Versão em Português](README.md)**
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-purple.svg)](LICENSE)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-emerald.svg)](https://nodejs.org/)
 [![Ollama](https://img.shields.io/badge/Ollama-Engine-black?logo=ollama)](https://ollama.com/)
@@ -117,6 +119,20 @@ npm install
 ```
 
 ### 4. Iniciar a Aplicação
+
+#### Opção A — 1 Clique no Windows:
+Dê dois cliques no arquivo:
+```cmd
+start.bat
+```
+
+#### Opção B — 1 Clique no Linux / macOS:
+```bash
+chmod +x start.sh
+./start.sh
+```
+
+#### Opção C — Terminal Tradicional:
 ```bash
 npm run dev
 ```
