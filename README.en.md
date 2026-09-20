@@ -43,27 +43,21 @@ Beyond a smooth real-time streaming chat, PurpleAI includes:
 
 ### 💬 Streaming Local LLM Chat
 *Clean interface with token-by-token streaming, model selector, and Ollama status detection*
-```
-[Add your screenshot at: docs/screenshots/chat.png]
-```
+
 ![Chat Interface](docs/screenshots/chat.png)
 
 ---
 
 ### 🧠 Vector RAG Knowledge Base
 *Document uploads, intelligent chunking, fast cosine vector search, and diagnostic inspect modal*
-```
-[Add your screenshot at: docs/screenshots/knowledge.png]
-```
+
 ![Knowledge Base](docs/screenshots/knowledge.png)
 
 ---
 
 ### 🛠️ Project Workspace & 1-Click Code Editor
 *Interactive directory tree, syntax highlighted viewer, and actionable code cards to apply edits on disk*
-```
-[Add your screenshot at: docs/screenshots/projects.png]
-```
+
 ![Projects Workspace](docs/screenshots/projects.png)
 
 </div>
