@@ -41,27 +41,20 @@ Além de um chat com streaming fluido em tempo real, o PurpleAI inclui:
 
 ### 💬 Chat com LLM Local e Streaming
 *Interface limpa com streaming token a token, seletor de modelos e detecção do Ollama*
-```
-[Adicione sua captura de tela em: docs/screenshots/chat.png]
-```
 ![Chat Interface](docs/screenshots/chat.png)
 
 ---
 
 ### 🧠 Base de Conhecimento & RAG Vetorial
 *Upload de documentos técnicos, segmentação de texto (chunks) e busca semântica de alta velocidade*
-```
-[Adicione sua captura de tela em: docs/screenshots/knowledge.png]
-```
+
 ![Knowledge Base](docs/screenshots/knowledge.png)
 
 ---
 
 ### 🛠️ Workspace de Projetos & Modificação com 1 Clique
 *Explorador de arquivos, visualizador com syntax highlighting e card interativo para salvar alterações no disco*
-```
-[Adicione sua captura de tela em: docs/screenshots/projects.png]
-```
+
 ![Projects Workspace](docs/screenshots/projects.png)
 
 </div>
