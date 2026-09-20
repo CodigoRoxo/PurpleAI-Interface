@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.env
+.env.local
+
+data/conversations/*
+!data/conversations/.gitkeep
+data/knowledge/*
+!data/knowledge/.gitkeep
+data/projects/*
+!data/projects/.gitkeep
+data/knowledge/uploads_temp/
+
+*.log
+*.tmp*
+*.bak

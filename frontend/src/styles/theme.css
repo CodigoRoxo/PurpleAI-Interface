@@ -1,0 +1,52 @@
+:root {
+  --bg-app: #07070b;
+  --bg-sidebar: #0b0a13;
+  --bg-card: #100f1c;
+  --bg-card-hover: #171529;
+  --bg-card-active: #1e1b36;
+  --bg-input: #100f1e;
+  --bg-code: #090812;
+
+  --border-subtle: #1c1a32;
+  --border-medium: #2a264a;
+  --border-focus: #7c3aed;
+
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --text-code: #e2e8f0;
+
+  --purple-50: #f5f3ff;
+  --purple-500: #8b5cf6;
+  --purple-600: #7c3aed;
+  --purple-700: #6d28d9;
+  --purple-glow: rgba(139, 92, 246, 0.4);
+  --purple-glow-subtle: rgba(139, 92, 246, 0.15);
+
+  --neon-cyan: #38bdf8;
+  --neon-purple: #c084fc;
+  --neon-green: #22c55e;
+  --neon-red: #ef4444;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-app);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-medium);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--purple-600);
+}
