@@ -1,39 +1,46 @@
 <div align="center">
 
-# 🟣 PurpleAI Interface
+# 🟣 PurpleAI Interface `v2.0`
 
-**A Modern, Privacy-First Local AI Web Interface & Code Assistant powered by Ollama and RAG.**
+### Seu Copilot & Workspace de IA 100% Local, Privado e sem Custos de Nuvem
+**Transforme qualquer modelo local do Ollama (DeepSeek, Qwen Coder, Llama) em uma estação de trabalho inteligente com RAG Vetorial e Modificação de Código em Disco.**
 
 🌐 **[ENGLISH VERSION AVAILABLE HERE](README.en.md)** • 🇧🇷 **[Versão em Português](README.md)**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-purple.svg)](LICENSE)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-emerald.svg)](https://nodejs.org/)
-[![Ollama](https://img.shields.io/badge/Ollama-Engine-black?logo=ollama)](https://ollama.com/)
+[![Ollama](https://img.shields.io/badge/Ollama-Local_Engine-black?logo=ollama)](https://ollama.com/)
 [![React](https://img.shields.io/badge/React-18-blue?logo=react)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript)](https://www.typescriptlang.org/)
 [![Vite](https://img.shields.io/badge/Vite-6-purple?logo=vite)](https://vitejs.dev/)
 [![TailwindCSS](https://img.shields.io/badge/Tailwind-CSS-38bdf8?logo=tailwindcss)](https://tailwindcss.com/)
 
-[Português](#-sobre-o-projeto) • [Features](#-features) • [Screenshots](#-screenshots) • [Quick Start](#-quick-start) • [Code Assistant](#-local-code-assistant--agent) • [Disclaimer](#-design--ai-slop-disclaimer)
+[🎯 O Intuito](#-o-intuito-do-projeto) • [✨ Pilares](#-os-4-pilares-do-purpleai) • [📸 Screenshots](#-screenshots) • [⚡ Recursos](#-recursos-completos) • [🚀 Quick Start](#-quick-start-como-rodar) • [🏗️ Arquitetura](#-arquitetura-do-sistema)
 
 ---
 
 </div>
 
-## 📌 Keywords / SEO Tags
-`Local LLM` • `Ollama Web UI` • `RAG (Retrieval Augmented Generation)` • `Local AI Assistant` • `Vector Search` • `AI Code Assistant` • `Private AI` • `Self-Hosted LLM` • `Offline AI` • `Developer Workspace` • `Open Source LLM Interface`
+## 🎯 O Intuito do Projeto
+
+A grande maioria das ferramentas de IA para desenvolvedores hoje (como GitHub Copilot, Cursor ou ChatGPT) sofre de dois problemas fundamentais:
+
+1. **Dependência de Nuvem e Privacidade Comprometida**: O código da sua empresa, seus segredos e seus documentos técnicos são enviados para servidores de terceiros.
+2. **UIs Locais Limitadas a "Apenas Chat"**: A maioria das interfaces web para Ollama atua somente como um chat genérico isolado. Elas não conseguem ler repositórios inteiros, não possuem noção da árvore de arquivos do seu projeto e não conseguem aplicar modificações de verdade no seu disco.
+
+> 💡 **O PurpleAI Interface nasceu para preencher essa lacuna:**  
+> Oferecer uma interface de desenvolvimento moderna, rápida e esteticamente refinada que roda **100% no seu hardware**, permitindo que você converse com modelos locais de ponta, consulte documentações técnicas via RAG e **permita que a IA proponha e aplique correções de código diretamente no seu disco com 1 clique e segurança total (backup automático)**.
 
 ---
 
-## 📖 Sobre o Projeto
+## ✨ Os 4 Pilares do PurpleAI
 
-O **PurpleAI Interface** é uma aplicação web completa, open source e autocontida para você rodar e gerenciar seus **modelos de linguagem locais (Local LLMs)** através do **Ollama**, sem depender de nuvem, sem assinaturas e com **100% de privacidade dos seus dados**.
-
-Além de um chat com streaming fluido em tempo real, o PurpleAI inclui:
-1. **Base de Conhecimento RAG (Retrieval-Augmented Generation)**: Faça upload de PDFs, notas em Markdown e códigos-fonte locais para enriquecer as respostas do modelo com dados da sua própria base vetorial.
-2. **Workspace & Code Assistant (Agente de Modificação)**: Conecte pastas de projetos locais, visualize a árvore de arquivos, faça buscas semânticas no código e deixe a IA propor correções que você aplica diretamente no disco com **1 clique** (com backup de segurança automático).
-
-> ⚠️ **Nota de Transparência:** Este projeto é 100% livre e foi desenvolvido para quem quer uma solução local e prática para criar seus próprios agentes e bases de conhecimento customizadas com Ollama.
+| Pilar | Descrição |
+| :--- | :--- |
+| 💻 **Workspace & Code Agent** | Conecte pastas de projetos locais no seu computador. A IA navega na árvore de arquivos, compreende o contexto do repositório, sugere alterações cirúrgicas (`SEARCH/REPLACE diff`) ou arquivos completos e aplica no disco com 1 clique (com backup `.bak` automático e terminal de comandos embutido). |
+| 🧠 **Base de Conhecimento Vetorial (RAG)** | Faça ingestão de documentações técnicas, PDFs, livros e notas em Markdown. O motor vetorial local fatia o conteúdo em chunks inteligentes e recupera fragmentos exatos por similaridade de cosseno, fundamentando as respostas do modelo com citações reais e zero alucinação. |
+| 📊 **Monitor HUD de Contexto em Tempo Real** | Telemetria ao vivo dos tokens do Ollama (`num_ctx` de 16k tokens) exibida em uma barra de progresso cyberpunk no rodapé. Acompanhe o consumo exato de Prompt, RAG e Resposta com gradientes dinâmicos (roxo, âmbar e vermelho pulsante) e poda inteligente de memória para evitar erros de estouro de contexto. |
+| 🪟 **Layout Widescreen & Modo Foco** | Interface generosa (`max-w-[1550px]`) projetada para telas Full HD e Ultrawide. Blocos de código ocupam a largura total sem quebras artificiais de linha, e a barra lateral pode ser recolhida a qualquer momento no topo para uma experiência imersiva de leitura e edição. |
 
 ---
 
@@ -41,57 +48,50 @@ Além de um chat com streaming fluido em tempo real, o PurpleAI inclui:
 
 <div align="center">
 
-### 💬 Chat com LLM Local e Streaming
-*Interface limpa com streaming token a token, seletor de modelos e detecção do Ollama*
+### 💬 Chat com Streaming & HUD de Contexto ao Vivo
+*Streaming token a token, seletor dinâmico de modelos do Ollama e monitor de consumo da janela de contexto no rodapé:*
+
 ![Chat Interface](docs/screenshots/chat.png)
 
 ---
 
-### 🧠 Base de Conhecimento & RAG Vetorial
-*Upload de documentos técnicos, segmentação de texto (chunks) e busca semântica de alta velocidade*
+### 🛠️ Workspace de Projetos & Aplicação de Alterações no Disco
+*Árvore de arquivos, syntax highlighting e card interativo para aplicar diffs ou arquivos completos com 1 clique:*
 
-![Knowledge Base](docs/screenshots/knowledge.png)
+![Projects Workspace](docs/screenshots/projects.png)
 
 ---
 
-### 🛠️ Workspace de Projetos & Modificação com 1 Clique
-*Explorador de arquivos, visualizador com syntax highlighting e card interativo para salvar alterações no disco*
+### 🧠 Base de Conhecimento & RAG Vetorial
+*Upload de documentos técnicos, segmentação de texto (chunks) e busca semântica ultrarrápida:*
 
-![Projects Workspace](docs/screenshots/projects.png)
+![Knowledge Base](docs/screenshots/knowledge.png)
 
 </div>
 
 ---
 
-## ⚡ Principais Recursos
+## ⚡ Recursos Completos
 
 - 🔒 **100% Local & Privado**: Zero telemetria, zero requisições para servidores externos. Tudo roda no seu computador.
-- ⚡ **Detecção Automática do Ollama**: Verifica status e sincroniza automaticamente a lista de modelos instalados (`llama3`, `qwen2.5-coder`, `deepseek-r1`, `mistral`, etc.).
-- 🌊 **Streaming em Tempo Real (SSE)**: Respostas exibidas de imediato com cancelamento instantâneo via botão "Parar".
-- 📊 **Monitor de Contexto em Tempo Real (HUD Progress Bar)**: Medidor visual com tokens de Prompt, RAG, Histórico e Resposta vs. capacidade máxima (`num_ctx`), com gradientes de cores dinâmicos (roxo, âmbar e vermelho pulsante) e popover de detalhamento.
-- 🧹 **Gestão & Poda Inteligente de Contexto**: Poda automática de mensagens antigas para evitar estouro de memória da LLM (`exceeds available context size`) e botão "Limpar Ctx" para reiniciar o histórico com 1 clique.
-- 🪟 **Layout Widescreen & Menu Retrátil**: Área de chat ampliada (`max-w-[1550px]`) e blocos de código em largura total sem quebras artificiais, com botão no cabeçalho para recolher a barra lateral em modo imersivo.
+- ⚡ **Detecção Automática do Ollama**: Verifica o status da API e sincroniza automaticamente a lista de modelos instalados (`llama3.2`, `qwen2.5-coder`, `deepseek-r1`, `mistral`, etc.).
+- 🌊 **Streaming em Tempo Real (SSE)**: Respostas exibidas de imediato token por token, com interrupção instantânea via botão "Parar".
+- 📊 **Monitor HUD de Contexto em Tempo Real**: Barra de progresso com telemetria direta do Ollama (Prompt, RAG, Histórico e Resposta vs. limite `num_ctx`), com indicação visual por cores e detalhamento via popover.
+- 🧹 **Gestão & Poda Inteligente de Contexto**: Poda automática de mensagens mais antigas quando a conversa atinge o limite de tokens para evitar falhas de contexto da LLM, com botão "Limpar Ctx" para reiniciar a memória instantaneamente.
+- 💻 **Assistente de Código & Modificador de Projetos**:
+  - Gerencie projetos de código pelo caminho absoluto local no seu disco.
+  - Árvore interativa de diretórios e arquivos com leitor de código integrado.
+  - Contextualização automática do projeto direto no prompt do modelo.
+  - **Cards Interativos de Diff & Patch**: Visualize alterações cirúrgicas (`SEARCH/REPLACE diff`) ou substituição completa com suporte a aplicação direta no disco e backup automático de segurança (`.bak`).
+  - Terminal embutido para execução de comandos e builds diretamente no diretório do projeto.
 - 📚 **Motor RAG Embutido**:
   - Ingestão de arquivos `.pdf`, `.md`, `.txt`, `.c`, `.cpp`, `.rs`, `.py`, `.ts`, etc.
   - Chunking inteligente por parágrafos e funções de código.
   - Embeddings vetoriais locais e busca semântica por similaridade de cosseno.
   - Citações de fontes interativas no chat.
-- 💻 **Assistente de Código & Modificador de Projetos**:
-  - Gerencie projetos de código pelo caminho local no seu computador.
-  - Árvore interativa de diretórios e arquivos com leitor de código integrado.
-  - Contextualização automática do projeto direto no prompt do modelo.
-  - **Cards Interativos de Diff & Patch**: Visualize alterações cirúrgicas (`SEARCH/REPLACE diff`) ou substituição completa com suporte a aplicação direta no disco e backup automático de segurança (`.bak`).
-  - Terminal embutido para execução de comandos e builds diretamente no diretório do projeto.
+- 🪟 **Layout Widescreen & Menu Retrátil**: Chat amplo (`1550px`) com blocos de código sem quebra forçada e botão no cabeçalho para recolher a barra lateral em modo imersivo.
 - 🎨 **Syntax Highlighting Completo**: Destaque de código com suporte a C, C++, Assembly (MASM/NASM), Rust, Python, Go, TypeScript, JSON, Bash e mais.
 - 💾 **Persistência Atômica**: Histórico de chats, coleções e projetos salvos localmente em JSON de forma atômica.
-
----
-
-## 🤖 Design & "AI Slop" Disclaimer
-
-> **Sim, a interface visual deste projeto foi gerada com auxílio de Inteligência Artificial.**  
-> Se você sentir aquela estética futurista clássica de "AI Slop" (muito neon roxo, gradientes cyberpunk e cartões translúcidos), agora você já sabe o motivo! 😄  
-> O objetivo principal foi criar uma ferramenta funcional, rápida e gostosa de usar no dia a dia com foco total em usabilidade, contraste e legibilidade de código. Sinta-se livre para customizar os temas em `frontend/src/styles/theme.css`.
 
 ---
 
@@ -100,21 +100,21 @@ Além de um chat com streaming fluido em tempo real, o PurpleAI inclui:
 ### 1. Pré-requisitos
 - [Node.js](https://nodejs.org/) v18 ou superior instalado.
 - [Ollama](https://ollama.com/) instalado e rodando na sua máquina.
-- Pelo menos um modelo de chat e um de embedding baixados no Ollama:
+- Baixe seus modelos favoritos no terminal:
   ```bash
-  # Modelo de Chat recomendado (ótimo para código e raciocínio geral)
+  # Modelo de Chat recomendado para código e lógica geral
   ollama pull qwen2.5-coder
   # ou
   ollama pull llama3.2
 
-  # Modelo de Embedding recomendado para o RAG
+  # Modelo de Embedding recomendado para a base RAG
   ollama pull all-minilm
   ```
 
 ### 2. Clonar o Repositório
 ```bash
-git clone https://github.com/seu-usuario/PurpleAI.Interface.git
-cd PurpleAI.Interface
+git clone https://github.com/CodigoRoxo/PurpleAI-Interface.git
+cd PurpleAI-Interface
 ```
 
 ### 3. Instalar Dependências
@@ -141,10 +141,6 @@ chmod +x start.sh
 npm run dev
 ```
 
-Este comando iniciará concorrentemente:
-- **Backend**: `http://localhost:3001`
-- **Frontend**: `http://localhost:3000`
-
 Abra seu navegador em:  
 👉 **[http://localhost:3000](http://localhost:3000)**
 
@@ -156,13 +152,13 @@ Abra seu navegador em:
 Selecione qualquer modelo disponível no seu Ollama através do dropdown superior. Digite sua mensagem e receba a resposta em tempo real.
 
 ### 2. Usando a Base de Conhecimento (RAG)
-1. Navegue até a aba **Base de Conhecimento** no menu lateral.
+1. Navegue até a aba **Knowledge** no menu lateral.
 2. Crie uma coleção e faça o upload de documentos (PDFs técnicos, guias, manuais, etc.).
 3. Ao conversar no chat com o botão **RAG** ativo, o assistente buscará os trechos mais relevantes dos seus documentos e fundamentará as respostas com base neles.
 
 ### 3. Usando o Workspace de Projetos (Code Assistant)
-1. Acesse a aba **Projetos** e clique em **Novo Projeto**.
-2. Digite o nome do projeto e o caminho absoluto da pasta no seu disco (ex: `C:\MeusProjetos\App`).
+1. Acesse a aba **Projects** e clique em **Novo Projeto**.
+2. Digite o nome do projeto e o caminho absoluto da pasta no seu disco (ex: `E:\MeusProjetos\App`).
 3. O PurpleAI indexará a árvore de arquivos e gerará a base semântica do seu código.
 4. No chat, selecione o projeto no dropdown ao lado do botão RAG (ou clique em **"Conversar com este Projeto"**).
 5. Peça para a IA explicar partes do código, encontrar bugs ou criar novas funções.
@@ -173,36 +169,38 @@ Selecione qualquer modelo disponível no seu Ollama através do dropdown superio
 ## 🏗️ Arquitetura do Sistema
 
 ```text
-┌───────────────────────────┐         ┌───────────────────────────┐
-│   Frontend (React + TS)   │         │    Backend (Express + TS) │
-│                           │         │                           │
-│  - Chat Area & Streaming  │ ◄─────► │  - SSE Stream Proxy       │
-│  - FileActionCard (Diff)  │   SSE   │  - Safe File System I/O   │
-│  - Projects Workspace     │   HTTP  │  - Chunker & Vector RAG   │
-│  - Knowledge Manager      │         │  - Atomic JSON Storage    │
-└───────────────────────────┘         └─────────────┬─────────────┘
-                                                    │
-                                                    ▼
-                                      ┌───────────────────────────┐
-                                      │    Ollama Local Engine    │
-                                      │    (http://localhost:11434│
-                                      │                           │
-                                      │  - Chat Models (LLMs)     │
-                                      │  - Embeddings (all-minilm)│
-                                      └───────────────────────────┘
+┌────────────────────────────────────────┐         ┌────────────────────────────────────────┐
+│         Frontend (React 18 + TS)       │         │        Backend (Express + Node.js)     │
+│                                        │         │                                        │
+│  - Chat Widescreen & Streaming (SSE)   │ ◄─────► │  - SSE Proxy & Ollama Orchestrator     │
+│  - HUD Context Progress Monitor        │   SSE   │  - Safe Disk I/O & Automatic .bak      │
+│  - FileActionCard (Interactive Diffs)  │   HTTP  │  - Vector Chunker & Cosine Search      │
+│  - Projects Explorer & Terminal Drawer │         │  - Smart Context Pruning Engine        │
+│  - Knowledge Manager & RAG Inspector   │         │  - Atomic JSON Data Storage            │
+└────────────────────────────────────────┘         └───────────────────┬────────────────────┘
+                                                                       │
+                                                                       ▼
+                                                   ┌────────────────────────────────────────┐
+                                                   │          Ollama Local Engine           │
+                                                   │         (http://localhost:11434)       │
+                                                   │                                        │
+                                                   │  - Chat LLMs (Qwen, DeepSeek, Llama)   │
+                                                   │  - Embeddings (all-minilm, bge, etc.)  │
+                                                   └────────────────────────────────────────┘
 ```
 
 ---
 
 ## ⚙️ Variáveis de Ambiente (Opcional)
 
-Caso queira customizar portas ou o endereço do Ollama, você pode criar um arquivo `.env` no `backend/`:
+Caso queira customizar portas ou o endereço do Ollama, você pode configurar um arquivo `.env` no `backend/`:
 
 ```env
 PORT=3001
 HOST=0.0.0.0
 OLLAMA_HOST=http://localhost:11434
 EMBEDDING_MODEL=all-minilm
+OLLAMA_NUM_CTX=16384
 ```
 
 ---
