@@ -1,6 +1,6 @@
 {
   "name": "purpleai-interface",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
   "description": "Local, modern, developer-focused web interface for Ollama models",
   "workspaces": [

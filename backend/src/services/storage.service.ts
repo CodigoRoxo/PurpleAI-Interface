@@ -121,6 +121,15 @@ export class StorageService {
     return conv;
   }
 
+  async clearMessages(id: string): Promise<Conversation | null> {
+    const conv = await this.getConversation(id);
+    if (!conv) return null;
+
+    conv.messages = [];
+    await this.saveConversation(conv);
+    return conv;
+  }
+
   async deleteConversation(id: string): Promise<boolean> {
     await this.ensureInitialized();
     const filePath = this.getFilePath(id);

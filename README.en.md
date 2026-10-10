@@ -69,16 +69,20 @@ Beyond a smooth real-time streaming chat, PurpleAI includes:
 - 🔒 **100% Local & Private**: Zero telemetry, zero external network calls. Everything runs exclusively on your local machine.
 - ⚡ **Automatic Ollama Synchronization**: Automatically detects running Ollama instances and lists installed models (`llama3.2`, `qwen2.5-coder`, `deepseek-r1`, `mistral`, etc.).
 - 🌊 **Real-Time Streaming (SSE)**: Fast, token-by-token streaming response with an instant "Stop" cancellation button.
+- 📊 **Real-Time Context Monitor (HUD Progress Bar)**: Visual progress bar showing prompt, RAG, history, and completion tokens vs. maximum window capacity (`num_ctx`), with dynamic warning gradients and detailed tooltip breakdown.
+- 🧹 **Smart Context Management & Pruning**: Graceful automatic pruning of older messages to prevent LLM memory overflows (`exceeds available context size`) plus a 1-click "Clear Context" button to reset memory.
+- 🪟 **Widescreen Layout & Collapsible Sidebar**: Generously expanded chat container (`max-w-[1550px]`) and full-width code blocks to eliminate artificial wrapping, with a header toggle button to collapse the sidebar for distraction-free coding.
 - 📚 **Built-in Vector RAG Engine**:
   - Ingestion for `.pdf`, `.md`, `.txt`, `.c`, `.cpp`, `.rs`, `.py`, `.ts`, and more.
   - Smart paragraph and code-aware chunking.
   - Local vector embeddings and cosine similarity search.
   - Interactive source citation modal in chat messages.
 - 💻 **Local Code Assistant & Project Workspace**:
-  - Connect local directories by path.
+  - Connect local directories by path on your machine.
   - Interactive file tree with embedded syntax highlighted code viewer.
   - Contextualizes your active project code directly in the system prompt.
-  - **File Action Cards**: When the model proposes a file modification or creation, an interactive **"Apply to Disk"** button writes the changes to your local file system and automatically creates a `.bak` safety backup before incrementally updating the vector index.
+  - **Interactive Diff & Patch Cards**: Surgical modification cards (`SEARCH/REPLACE diff`) or full file replacement with 1-click write to disk and automatic safety backup (`.bak`).
+  - Integrated terminal drawer for running commands and builds directly inside the project root.
 - 🎨 **Rich Syntax Highlighting**: Powered by Highlight.js with dark cyber themes for C, C++, Assembly (MASM/NASM), Rust, Python, Go, TypeScript, JSON, Bash, and more.
 - 💾 **Safe Atomic Storage**: Conversations, collections, and projects are persisted locally in lightweight JSON files.
 

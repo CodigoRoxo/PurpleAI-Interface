@@ -86,6 +86,23 @@ export class ConversationsController {
       res.status(500).json({ error: msg });
     }
   }
+
+  async clearMessages(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const updated = await storageService.clearMessages(id);
+
+      if (!updated) {
+        res.status(404).json({ error: 'Conversa não encontrada' });
+        return;
+      }
+
+      res.json(updated);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Erro ao limpar mensagens da conversa';
+      res.status(500).json({ error: msg });
+    }
+  }
 }
 
 export const conversationsController = new ConversationsController();

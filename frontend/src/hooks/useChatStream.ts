@@ -1,6 +1,6 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { api } from '../services/api';
-import { ChatMessage, Conversation } from '../types/chat';
+import { ChatMessage, Conversation, ContextUsageInfo } from '../types/chat';
 
 interface UseChatStreamProps {
   activeConversation: Conversation | null;
@@ -21,8 +21,36 @@ export function useChatStream({
 }: UseChatStreamProps) {
   const [isStreaming, setIsStreaming] = useState<boolean>(false);
   const [useKnowledge, setUseKnowledge] = useState<boolean>(true);
+  const [contextUsage, setContextUsage] = useState<ContextUsageInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    if (!activeConversation || activeConversation.messages.length === 0) {
+      setContextUsage(null);
+      return;
+    }
+
+    const msgs = activeConversation.messages;
+    const lastWithUsage = [...msgs].reverse().find(m => m.contextUsage);
+    if (lastWithUsage && lastWithUsage.contextUsage) {
+      setContextUsage(lastWithUsage.contextUsage);
+    } else {
+      const charsCount = msgs.reduce((acc, m) => acc + (m.content?.length || 0), 0);
+      const estMsgTokens = Math.ceil(charsCount / 3.5);
+      const estProjTokens = activeProjectId ? 2000 : 0;
+      const estRagTokens = useKnowledge ? 1500 : 0;
+      const totalTokens = estMsgTokens + estProjTokens + estRagTokens;
+      const maxTokens = 16384;
+      setContextUsage({
+        promptTokens: totalTokens,
+        completionTokens: 0,
+        totalTokens,
+        maxTokens,
+        percentage: Math.min(100, Math.round((totalTokens / maxTokens) * 100)),
+      });
+    }
+  }, [activeConversation?.id, activeConversation?.messages.length, activeProjectId, useKnowledge]);
 
   const sendMessage = useCallback(async (content: string) => {
     if (!content.trim() || isStreaming) return;
@@ -102,6 +130,33 @@ export function useChatStream({
           };
         });
       },
+      onContextPruned: (contextPruned) => {
+        setActiveConversation(prev => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            messages: prev.messages.map(m =>
+              m.id === assistantPlaceholderId
+                ? { ...m, contextPruned }
+                : m
+            ),
+          };
+        });
+      },
+      onContextUsage: (usage) => {
+        setContextUsage(usage);
+        setActiveConversation(prev => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            messages: prev.messages.map(m =>
+              m.id === assistantPlaceholderId
+                ? { ...m, contextUsage: usage }
+                : m
+            ),
+          };
+        });
+      },
       onChunk: (chunk: string) => {
         accumulatedResponse += chunk;
         setActiveConversation(prev => {
@@ -156,5 +211,7 @@ export function useChatStream({
     setUseKnowledge,
     error,
     clearError: () => setError(null),
+    contextUsage,
+    setContextUsage,
   };
 }

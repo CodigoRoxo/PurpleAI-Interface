@@ -63,7 +63,7 @@ export const MessageList: React.FC<MessageListProps> = ({
       onScroll={handleScroll}
       className="flex-1 overflow-y-auto w-full flex flex-col"
     >
-      <div className="max-w-4xl w-full mx-auto py-4 px-2 sm:px-4 flex flex-col flex-1">
+      <div className="w-full max-w-6xl xl:max-w-7xl 2xl:max-w-[1550px] mx-auto py-4 px-3 sm:px-6 lg:px-8 flex flex-col flex-1">
         {messages.map((message, index) => {
           const isLast = index === messages.length - 1;
           return (

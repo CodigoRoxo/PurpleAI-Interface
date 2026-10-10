@@ -1,7 +1,7 @@
 import React, { memo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Bot, User, Copy, Check, Sparkles } from 'lucide-react';
+import { Bot, User, Copy, Check, Sparkles, AlertTriangle } from 'lucide-react';
 import { ChatMessage, ChatSourceCitation } from '../../types/chat';
 import { CodeBlock } from './CodeBlock';
 import { FileActionCard } from './FileActionCard';
@@ -33,8 +33,8 @@ export const MessageItem: React.FC<MessageItemProps> = memo(({ message, isStream
 
   if (isUser) {
     return (
-      <div className="w-full flex justify-end px-2 sm:px-4 md:px-6 my-3 group">
-        <div className="flex flex-row-reverse items-start gap-2.5 max-w-[85%] sm:max-w-[75%] lg:max-w-[65%]">
+      <div className="w-full flex justify-end px-1 sm:px-2 md:px-3 my-3 group">
+        <div className="flex flex-row-reverse items-start gap-2.5 max-w-[92%] sm:max-w-[85%] lg:max-w-[78%]">
           <div className="flex-shrink-0 pt-1">
             <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-[#6d28d9] to-[#a855f7] flex items-center justify-center text-white shadow-md shadow-purple-900/40">
               <User className="w-3.5 h-3.5" />
@@ -70,8 +70,8 @@ export const MessageItem: React.FC<MessageItemProps> = memo(({ message, isStream
   }
 
   return (
-    <div className="w-full flex justify-start px-2 sm:px-4 md:px-6 my-4 group">
-      <div className="flex flex-row items-start gap-3 max-w-[95%] sm:max-w-[90%] lg:max-w-[85%]">
+    <div className="w-full flex justify-start px-1 sm:px-2 md:px-3 my-4 group">
+      <div className="flex flex-row items-start gap-3 w-full">
         <div className="flex-shrink-0 pt-1">
           <div className="w-8 h-8 rounded-lg bg-[#121024] border border-[#2e2954] flex items-center justify-center text-purple-vivid shadow-md shadow-purple-950/50">
             <Bot className="w-4 h-4 text-purple-accent" />
@@ -138,6 +138,22 @@ export const MessageItem: React.FC<MessageItemProps> = memo(({ message, isStream
               </button>
             </div>
           )}
+          {message.contextPruned && (
+            <div className="mb-3 p-3 rounded-xl bg-amber-950/30 border border-amber-500/40 text-amber-200 text-xs flex items-start gap-2.5 shadow-md shadow-amber-950/20 select-none animate-in fade-in">
+              <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <div className="font-semibold text-amber-300 flex items-center gap-2">
+                  <span>Janela de Contexto Ajustada</span>
+                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-amber-900/60 text-amber-200 border border-amber-700/50">
+                    -{message.contextPruned.prunedCount} mensagens do início
+                  </span>
+                </div>
+                <div className="text-[11.5px] text-amber-200/90 mt-1 leading-relaxed">
+                  Para evitar estouro de memória da LLM local (~{message.contextPruned.originalTokens} tokens acumulados), {message.contextPruned.prunedCount} mensagem(ns) mais antigas do início da conversa foram descartadas. A resposta foi gerada com base nos trechos mais recentes.
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="rounded-2xl rounded-tl-sm bg-[#0e0d1c] border border-[#232042] px-5 py-4 shadow-xl shadow-black/40 text-slate-200">
             <div className="prose-dark text-[14.5px] leading-relaxed break-words">
@@ -154,6 +170,12 @@ export const MessageItem: React.FC<MessageItemProps> = memo(({ message, isStream
 
                     if (rawTag.startsWith('file:')) {
                       detectedFilePath = rawTag.slice(5).trim();
+                    } else if (rawTag.startsWith('diff:')) {
+                      detectedFilePath = rawTag.slice(5).trim();
+                      detectedLang = 'diff';
+                    } else if (rawTag.startsWith('patch:')) {
+                      detectedFilePath = rawTag.slice(6).trim();
+                      detectedLang = 'diff';
                     } else if (rawTag.includes(':')) {
                       const [lang, ...rest] = rawTag.split(':');
                       detectedLang = lang;

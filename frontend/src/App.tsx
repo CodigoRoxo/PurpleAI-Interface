@@ -44,6 +44,7 @@ export const App: React.FC = () => {
     newConversation,
     renameConversation,
     deleteConversation,
+    clearConversationMessages,
     refreshConversations,
   } = useConversations(selectedModel);
 
@@ -84,6 +85,7 @@ export const App: React.FC = () => {
     setUseKnowledge: setUseKnowledgeState,
     error,
     clearError,
+    contextUsage,
   } = useChatStream({
     activeConversation,
     setActiveConversation,
@@ -133,6 +135,13 @@ export const App: React.FC = () => {
           projects={projects}
           activeProjectId={activeProjectId}
           onSelectProject={setActiveProjectId}
+          contextUsage={contextUsage}
+          onClearContext={() => {
+            if (!activeConversation) return;
+            if (window.confirm('Deseja limpar as mensagens desta conversa para liberar 100% da memória de contexto do modelo?')) {
+              clearConversationMessages(activeConversation.id);
+            }
+          }}
         />
       ) : currentView === 'knowledge' ? (
         <KnowledgeView

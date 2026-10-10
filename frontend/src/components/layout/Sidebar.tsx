@@ -68,7 +68,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
         onClick={() => {
           if (!disabled) {
             onNavigate(view);
-            onClose();
+            if (typeof window !== 'undefined' && window.innerWidth < 768) {
+              onClose();
+            }
           }
         }}
         disabled={disabled}
@@ -108,26 +110,31 @@ export const Sidebar: React.FC<SidebarProps> = ({
       )}
 
       <aside
-        className={`fixed md:static inset-y-0 left-0 z-30 w-72 bg-[#090812] border-r border-[#1a182e] flex flex-col transition-transform duration-200 ease-in-out ${
-          isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
-        } select-none`}
+        className={`fixed md:static inset-y-0 left-0 z-30 bg-[#090812] border-r border-[#1a182e] flex flex-col transition-all duration-300 ease-in-out select-none overflow-hidden ${
+          isOpen
+            ? 'w-72 translate-x-0 opacity-100'
+            : '-translate-x-full md:translate-x-0 md:w-0 md:border-r-0 md:opacity-0'
+        }`}
       >
-        <div className="p-4 border-b border-[#1a182e] space-y-4">
-          <button
-            onClick={() => {
-              onNew();
-              onNavigate('chat');
-              onClose();
-            }}
-            className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#5b21b6] via-[#7c3aed] to-[#8b5cf6] hover:from-[#6d28d9] hover:to-[#9333ea] text-white text-sm font-medium shadow-md shadow-purple-950/50 transition-all active:scale-[0.98]"
-          >
-            <Plus className="w-4 h-4" />
-            <span>New Chat</span>
-          </button>
-          
-          <div className="space-y-1">
-            <NavItem view="chat" icon={MessagesSquare} label="Chats" />
-            <NavItem view="knowledge" icon={Database} label="Knowledge" badge={activeKnowledgeCount} />
+        <div className="w-72 flex flex-col h-full flex-shrink-0">
+          <div className="p-4 border-b border-[#1a182e] space-y-4">
+            <button
+              onClick={() => {
+                onNew();
+                onNavigate('chat');
+                if (typeof window !== 'undefined' && window.innerWidth < 768) {
+                  onClose();
+                }
+              }}
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#5b21b6] via-[#7c3aed] to-[#8b5cf6] hover:from-[#6d28d9] hover:to-[#9333ea] text-white text-sm font-medium shadow-md shadow-purple-950/50 transition-all active:scale-[0.98]"
+            >
+              <Plus className="w-4 h-4" />
+              <span>New Chat</span>
+            </button>
+            
+            <div className="space-y-1">
+              <NavItem view="chat" icon={MessagesSquare} label="Chats" />
+              <NavItem view="knowledge" icon={Database} label="Knowledge" badge={activeKnowledgeCount} />
             <NavItem view="projects" icon={Code2} label="Projects" badge={projectsCount} />
             <NavItem view="agents" icon={Cpu} label="Agents" disabled />
           </div>
@@ -248,12 +255,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         )}
 
-        <div className="p-3 border-t border-[#1a182e] bg-[#07060e] flex items-center justify-between text-xs text-slate-500">
-          <div className="flex items-center gap-2">
-            <Code2 className="w-4 h-4 text-purple-accent" />
-            <span className="text-[11px] font-mono">Dev Engine V2 (RAG)</span>
+          <div className="p-3 border-t border-[#1a182e] bg-[#07060e] flex items-center justify-between text-xs text-slate-500">
+            <div className="flex items-center gap-2">
+              <Code2 className="w-4 h-4 text-purple-accent" />
+              <span className="text-[11px] font-mono">Dev Engine V2 (RAG)</span>
+            </div>
+            <span className="text-[10px] text-slate-600">Local Only</span>
           </div>
-          <span className="text-[10px] text-slate-600">Local Only</span>
         </div>
       </aside>
     </>

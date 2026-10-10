@@ -16,12 +16,29 @@ export interface ChatSourceCitation {
   score: number;
 }
 
+export interface ContextPrunedInfo {
+  prunedCount: number;
+  originalTokens: number;
+  newTokens: number;
+  message?: string;
+}
+
+export interface ContextUsageInfo {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  maxTokens: number;
+  percentage: number;
+}
+
 export interface ChatMessage {
   id: string;
   role: MessageRole;
   content: string;
   timestamp: number;
   sources?: ChatSourceCitation[];
+  contextPruned?: ContextPrunedInfo;
+  contextUsage?: ContextUsageInfo;
 }
 
 export interface Conversation {

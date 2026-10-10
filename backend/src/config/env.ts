@@ -15,5 +15,6 @@ export const env = {
   KNOWLEDGE_DIR: process.env.KNOWLEDGE_DIR || path.resolve(__dirname, '../../data/knowledge'),
   PROJECTS_DIR: process.env.PROJECTS_DIR || path.resolve(__dirname, '../../data/projects'),
   EMBEDDING_MODEL: process.env.EMBEDDING_MODEL || 'all-minilm',
+  OLLAMA_NUM_CTX: parseInt(process.env.OLLAMA_NUM_CTX || '16384', 10),
   IS_DEV: process.env.NODE_ENV !== 'production',
 };

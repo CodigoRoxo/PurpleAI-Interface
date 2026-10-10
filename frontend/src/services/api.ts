@@ -1,4 +1,4 @@
-import { Conversation, ConversationSummary, ChatSourceCitation } from '../types/chat';
+import { Conversation, ConversationSummary, ChatSourceCitation, ContextPrunedInfo, ContextUsageInfo } from '../types/chat';
 import { OllamaModel, OllamaStatus } from '../types/model';
 import { KnowledgeSource, KnowledgeStats, KnowledgeChunk, KnowledgeSearchResult, KnowledgeCollection, RAGDebugTrace, TestResult } from '../types/knowledge';
 import { Project, ProjectSearchResult, ProjectTreeNode } from '../types/project';
@@ -83,6 +83,41 @@ export const api = {
     return res.json();
   },
 
+  async applyProjectPatch(
+    id: string,
+    filePath: string,
+    search: string,
+    replace: string,
+    forceOverwrite = false
+  ): Promise<{ success: boolean; backupCreated: boolean; chunksCount: number; originalSnippet: string; newSnippet: string }> {
+    const res = await fetch(`${API_BASE}/projects/${id}/patch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: filePath, search, replace, forceOverwrite }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Falha ao aplicar modificação no arquivo');
+    }
+    return res.json();
+  },
+
+  async runProjectCommand(
+    id: string,
+    command: string
+  ): Promise<{ exitCode: number; stdout: string; stderr: string; executionTimeMs: number }> {
+    const res = await fetch(`${API_BASE}/projects/${id}/command`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ command }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Falha ao executar comando');
+    }
+    return res.json();
+  },
+
   async getOllamaStatus(): Promise<OllamaStatus> {
     const res = await fetch(`${API_BASE}/ollama/status`);
     if (!res.ok) throw new Error('Falha ao verificar status do Ollama');
@@ -137,6 +172,14 @@ export const api = {
       method: 'DELETE',
     });
     if (!res.ok) throw new Error('Falha ao deletar conversa');
+  },
+
+  async clearConversationMessages(id: string): Promise<Conversation> {
+    const res = await fetch(`${API_BASE}/conversations/${id}/clear`, {
+      method: 'POST',
+    });
+    if (!res.ok) throw new Error('Falha ao limpar contexto da conversa');
+    return res.json();
   },
 
   async getKnowledgeSources(): Promise<{ sources: KnowledgeSource[]; stats: KnowledgeStats; collections: KnowledgeCollection[] }> {
@@ -304,6 +347,8 @@ export const api = {
     signal,
     onChunk,
     onSources,
+    onContextPruned,
+    onContextUsage,
     onDone,
     onError,
   }: {
@@ -316,6 +361,8 @@ export const api = {
     signal?: AbortSignal;
     onChunk: (chunk: string) => void;
     onSources?: (sources: ChatSourceCitation[]) => void;
+    onContextPruned?: (info: ContextPrunedInfo) => void;
+    onContextUsage?: (info: ContextUsageInfo) => void;
     onDone: () => void;
     onError: (err: Error) => void;
   }): Promise<void> {
@@ -375,6 +422,16 @@ export const api = {
 
               if (parsed.type === 'knowledge' && parsed.sources && onSources) {
                 onSources(parsed.sources);
+                continue;
+              }
+
+              if (parsed.type === 'context_pruned') {
+                onContextPruned?.(parsed);
+                continue;
+              }
+
+              if (parsed.type === 'context_usage') {
+                onContextUsage?.(parsed);
                 continue;
               }
 

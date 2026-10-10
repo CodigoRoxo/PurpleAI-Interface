@@ -12,5 +12,7 @@ router.post('/:id/search', projectsController.search.bind(projectsController));
 router.get('/:id/tree', projectsController.tree.bind(projectsController));
 router.get('/:id/file', projectsController.getFile.bind(projectsController));
 router.post('/:id/file', projectsController.saveFile.bind(projectsController));
+router.post('/:id/patch', projectsController.patchFile.bind(projectsController));
+router.post('/:id/command', projectsController.runCommand.bind(projectsController));
 
 export const projectsRouter = router;

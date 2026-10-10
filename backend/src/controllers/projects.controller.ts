@@ -113,6 +113,36 @@ export class ProjectsController {
       res.status(500).json({ error: err.message || 'Failed to save file' });
     }
   }
+
+  async patchFile(req: Request, res: Response): Promise<void> {
+    const { path: filePath, search, replace, forceOverwrite } = req.body;
+    if (!filePath || typeof replace !== 'string') {
+      res.status(400).json({ error: 'Path and replace string are required' });
+      return;
+    }
+
+    try {
+      const result = await projectService.applyFilePatch(req.params.id, filePath, search || '', replace, Boolean(forceOverwrite));
+      res.json(result);
+    } catch (err: any) {
+      res.status(400).json({ error: err.message || 'Failed to patch file' });
+    }
+  }
+
+  async runCommand(req: Request, res: Response): Promise<void> {
+    const { command } = req.body;
+    if (!command || typeof command !== 'string') {
+      res.status(400).json({ error: 'Command string is required' });
+      return;
+    }
+
+    try {
+      const result = await projectService.runProjectCommand(req.params.id, command);
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Failed to execute command' });
+    }
+  }
 }
 
 export const projectsController = new ProjectsController();

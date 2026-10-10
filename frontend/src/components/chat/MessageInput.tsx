@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { ArrowUp, Square, Sparkles, FolderCode } from 'lucide-react';
+import { ArrowUp, Square, Sparkles, FolderCode, Eraser, Cpu, Info } from 'lucide-react';
 import { Project } from '../../types/project';
+import { ContextUsageInfo } from '../../types/chat';
 
 interface MessageInputProps {
   onSend: (message: string) => void;
@@ -13,6 +14,8 @@ interface MessageInputProps {
   projects?: Project[];
   activeProjectId?: string | null;
   onSelectProject?: (id: string | null) => void;
+  onClearContext?: () => void;
+  contextUsage?: ContextUsageInfo | null;
 }
 
 export const MessageInput: React.FC<MessageInputProps> = ({
@@ -26,9 +29,52 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   projects = [],
   activeProjectId,
   onSelectProject,
+  onClearContext,
+  contextUsage,
 }) => {
   const [content, setContent] = useState('');
+  const [showContextDetails, setShowContextDetails] = useState<boolean>(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const totalTokens = contextUsage?.totalTokens || 0;
+  const maxTokens = contextUsage?.maxTokens || 16384;
+  const promptTokens = contextUsage?.promptTokens || 0;
+  const completionTokens = contextUsage?.completionTokens || 0;
+  const percentage = contextUsage ? Math.min(100, Math.max(0, contextUsage.percentage)) : 0;
+
+  const formatTokens = (tokens: number): string => {
+    if (tokens >= 1000) {
+      return `${(tokens / 1000).toFixed(1)}k`;
+    }
+    return `${tokens}`;
+  };
+
+  const getStatusStyles = () => {
+    if (percentage >= 85) {
+      return {
+        bar: 'bg-gradient-to-r from-rose-600 via-pink-500 to-rose-400 shadow-[0_0_12px_rgba(244,63,94,0.4)] animate-pulse',
+        text: 'text-rose-400 font-bold',
+        badge: 'bg-rose-950/80 border border-rose-800 text-rose-300',
+        icon: 'text-rose-400 animate-pulse',
+      };
+    }
+    if (percentage >= 65) {
+      return {
+        bar: 'bg-gradient-to-r from-amber-600 via-amber-500 to-yellow-400 shadow-[0_0_10px_rgba(245,158,11,0.3)]',
+        text: 'text-amber-400 font-semibold',
+        badge: 'bg-amber-950/80 border border-amber-800/80 text-amber-300',
+        icon: 'text-amber-400',
+      };
+    }
+    return {
+      bar: 'bg-gradient-to-r from-purple-600 via-purple-500 to-indigo-500 shadow-[0_0_10px_rgba(139,92,246,0.3)]',
+      text: 'text-purple-300',
+      badge: 'bg-purple-950/70 border border-purple-800/60 text-purple-300',
+      icon: 'text-purple-400',
+    };
+  };
+
+  const statusStyles = getStatusStyles();
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -62,7 +108,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   };
 
   return (
-    <div className="w-full max-w-3xl mx-auto px-4 pb-4 select-none">
+    <div className="w-full max-w-6xl xl:max-w-7xl 2xl:max-w-[1550px] mx-auto px-3 sm:px-6 lg:px-8 pb-4 select-none">
       <div className="relative flex items-end bg-[#0e0d1c] border border-[#272445] rounded-2xl p-2.5 shadow-xl shadow-black/40 focus-within:border-purple-500 focus-within:ring-1 focus-within:ring-purple-500/50 transition-all">
         <textarea
           ref={textareaRef}
@@ -126,6 +172,18 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             </button>
           )}
 
+          {onClearContext && (
+            <button
+              type="button"
+              onClick={onClearContext}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-mono font-medium transition-all bg-[#141226] hover:bg-[#201c38] text-slate-400 hover:text-amber-300 border border-[#272445] hover:border-amber-600/50"
+              title="Limpar histórico de mensagens para liberar a janela de contexto do modelo"
+            >
+              <Eraser className="w-3.5 h-3.5 text-amber-400/80" />
+              <span className="hidden sm:inline">Limpar Ctx</span>
+            </button>
+          )}
+
           {isStreaming ? (
             <button
               onClick={onStop}
@@ -146,10 +204,80 @@ export const MessageInput: React.FC<MessageInputProps> = ({
           )}
         </div>
       </div>
-      <div className="text-center mt-2">
-        <span className="text-[11px] text-slate-500">
-          PurpleAI executa inferência através do motor local Ollama.
-        </span>
+
+      {/* HUD Context Progress Bar */}
+      <div className="relative mt-2 px-1">
+        {showContextDetails && (
+          <div
+            className="absolute bottom-9 left-1/2 -translate-x-1/2 w-80 bg-[#121024]/95 border border-[#2e2a52] rounded-xl p-3 shadow-2xl z-30 text-xs backdrop-blur-md animate-in fade-in zoom-in-95"
+            onMouseLeave={() => setShowContextDetails(false)}
+          >
+            <div className="flex items-center justify-between pb-2 border-b border-[#232040] mb-2">
+              <div className="flex items-center gap-1.5 font-semibold text-slate-200">
+                <Cpu className="w-3.5 h-3.5 text-purple-400" />
+                <span>Uso da Janela de Contexto</span>
+              </div>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${statusStyles.badge}`}>
+                {percentage}%
+              </span>
+            </div>
+            <div className="space-y-1.5 font-mono text-[11px] text-slate-300">
+              <div className="flex justify-between">
+                <span className="text-slate-400">Prompt / Histórico / RAG:</span>
+                <span className="text-slate-200">{promptTokens.toLocaleString()} tokens</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Última Resposta:</span>
+                <span className="text-slate-200">{completionTokens.toLocaleString()} tokens</span>
+              </div>
+              <div className="flex justify-between font-semibold pt-1 border-t border-[#232040]">
+                <span className="text-slate-300">Total Utilizado:</span>
+                <span className={statusStyles.text}>{totalTokens.toLocaleString()} tokens</span>
+              </div>
+              <div className="flex justify-between text-slate-400">
+                <span>Capacidade Máxima (num_ctx):</span>
+                <span>{maxTokens.toLocaleString()} tokens</span>
+              </div>
+            </div>
+            {percentage >= 80 && (
+              <div className="mt-2.5 pt-2 border-t border-[#232040] text-[10.5px] text-amber-300 flex items-start gap-1.5 leading-tight">
+                <Info className="w-3.5 h-3.5 flex-shrink-0 text-amber-400 mt-0.5" />
+                <span>Dica: Contexto elevado. Use "Limpar Ctx" se desejar iniciar um novo tema com 100% de memória livre.</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div
+          className="flex items-center justify-between gap-3 cursor-pointer select-none group"
+          onClick={() => setShowContextDetails(prev => !prev)}
+          onMouseEnter={() => setShowContextDetails(true)}
+          onMouseLeave={() => setShowContextDetails(false)}
+          title="Clique para ver o detalhamento do consumo de tokens da conversa"
+        >
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <Cpu className={`w-3.5 h-3.5 ${statusStyles.icon}`} />
+            <span className="font-mono text-[11px] font-medium text-slate-400 group-hover:text-slate-300 transition-colors">
+              Contexto:
+            </span>
+          </div>
+
+          <div className="flex-1 h-2 bg-[#121022] border border-[#272445] rounded-full overflow-hidden p-[1px] relative">
+            <div
+              className={`h-full rounded-full transition-all duration-500 ease-out ${statusStyles.bar}`}
+              style={{ width: `${Math.max(percentage, totalTokens > 0 ? 3 : 0)}%` }}
+            />
+          </div>
+
+          <div className="flex items-center gap-1.5 text-right flex-shrink-0 font-mono text-[11px]">
+            <span className={`${statusStyles.text} group-hover:brightness-110 transition-all`}>
+              {formatTokens(totalTokens)} / {formatTokens(maxTokens)}
+            </span>
+            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${statusStyles.badge}`}>
+              {percentage}%
+            </span>
+          </div>
+        </div>
       </div>
     </div>
   );

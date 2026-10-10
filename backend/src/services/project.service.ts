@@ -1,6 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { randomUUID } from 'crypto';
+import { exec } from 'child_process';
 import ignore from 'ignore';
 import { env } from '../config/env.js';
 import { Project, ProjectSettings, ProjectFile, ProjectSearchResult, ProjectTreeNode } from '../types/project.js';
@@ -409,6 +410,141 @@ export class ProjectService {
 
     await walk(project.path);
     return fileList;
+  }
+
+  async applyFilePatch(
+    projectId: string,
+    relativePath: string,
+    searchContent: string,
+    replaceContent: string,
+    forceOverwrite = false
+  ): Promise<{ success: boolean; backupCreated: boolean; chunksCount: number; originalSnippet: string; newSnippet: string }> {
+    const project = await this.getProject(projectId);
+    if (!project) throw new Error('Projeto não encontrado');
+
+    const safePath = this.resolveSafePath(project.path, relativePath);
+    const normalizedRelPath = relativePath.replace(/\\/g, '/').replace(/^\//, '');
+
+    if (forceOverwrite || !searchContent.trim()) {
+      const saveResult = await this.saveProjectFile(projectId, relativePath, replaceContent);
+      return {
+        success: true,
+        backupCreated: saveResult.backupCreated,
+        chunksCount: saveResult.chunksCount,
+        originalSnippet: '',
+        newSnippet: replaceContent,
+      };
+    }
+
+    let fileContent: string;
+    try {
+      fileContent = await fs.readFile(safePath, 'utf-8');
+    } catch {
+      throw new Error(`Arquivo não encontrado para aplicar modificação: ${normalizedRelPath}`);
+    }
+
+    const normFile = fileContent.replace(/\r\n/g, '\n');
+    const normSearch = searchContent.trim().replace(/\r\n/g, '\n');
+    const normReplace = replaceContent.replace(/\r\n/g, '\n');
+
+    let startIndex = normFile.indexOf(normSearch);
+    let matchedLength = normSearch.length;
+
+    if (startIndex === -1) {
+      const searchLines = normSearch.split('\n').map(l => l.trim()).filter(Boolean);
+      const cleanSearchLines = searchLines.filter(l => !/^(?:\/\/|\/\*|#|\*)\s*\.{2,}/.test(l) && l !== '...');
+
+      if (cleanSearchLines.length > 0) {
+        const fileLines = normFile.split('\n');
+        for (let i = 0; i <= fileLines.length - cleanSearchLines.length; i++) {
+          let allMatch = true;
+          for (let j = 0; j < cleanSearchLines.length; j++) {
+            if (fileLines[i + j].trim() !== cleanSearchLines[j]) {
+              allMatch = false;
+              break;
+            }
+          }
+          if (allMatch) {
+            const startLineIdx = i;
+            const endLineIdx = i + cleanSearchLines.length;
+            startIndex = fileLines.slice(0, startLineIdx).join('\n').length + (startLineIdx > 0 ? 1 : 0);
+            const matchedSnippet = fileLines.slice(startLineIdx, endLineIdx).join('\n');
+            matchedLength = matchedSnippet.length;
+            break;
+          }
+        }
+
+        if (startIndex === -1 && cleanSearchLines.length >= 2) {
+          const firstLine = cleanSearchLines[0];
+          const lastLine = cleanSearchLines[cleanSearchLines.length - 1];
+
+          for (let i = 0; i < fileLines.length; i++) {
+            if (fileLines[i].trim() === firstLine) {
+              for (let j = i + 1; j < fileLines.length && (j - i) <= 150; j++) {
+                if (fileLines[j].trim() === lastLine) {
+                  const startLineIdx = i;
+                  const endLineIdx = j + 1;
+                  startIndex = fileLines.slice(0, startLineIdx).join('\n').length + (startLineIdx > 0 ? 1 : 0);
+                  const matchedSnippet = fileLines.slice(startLineIdx, endLineIdx).join('\n');
+                  matchedLength = matchedSnippet.length;
+                  break;
+                }
+              }
+              if (startIndex !== -1) break;
+            }
+          }
+        }
+      }
+    }
+
+    if (startIndex === -1) {
+      throw new Error(`Trecho SEARCH não encontrado no arquivo ${normalizedRelPath}. Use a opção "Sobrescrever Arquivo Completo" para aplicar o novo código diretamente.`);
+    }
+
+    const updatedContent = normFile.slice(0, startIndex) + normReplace + normFile.slice(startIndex + matchedLength);
+    const finalContent = fileContent.includes('\r\n')
+      ? updatedContent.replace(/\n/g, '\r\n')
+      : updatedContent;
+
+    const saveResult = await this.saveProjectFile(projectId, relativePath, finalContent);
+
+    return {
+      success: true,
+      backupCreated: saveResult.backupCreated,
+      chunksCount: saveResult.chunksCount,
+      originalSnippet: normSearch,
+      newSnippet: normReplace,
+    };
+  }
+
+  async runProjectCommand(
+    projectId: string,
+    command: string
+  ): Promise<{ exitCode: number; stdout: string; stderr: string; executionTimeMs: number }> {
+    const project = await this.getProject(projectId);
+    if (!project) throw new Error('Projeto não encontrado');
+
+    const cleanCommand = command.trim();
+    if (!cleanCommand) throw new Error('Comando não pode ser vazio');
+
+    const t0 = Date.now();
+    return new Promise((resolve) => {
+      exec(cleanCommand, {
+        cwd: project.path,
+        timeout: 30000,
+        maxBuffer: 2 * 1024 * 1024,
+        windowsHide: true,
+      }, (error, stdout, stderr) => {
+        const executionTimeMs = Date.now() - t0;
+        const exitCode = error ? (error.code ?? 1) : 0;
+        resolve({
+          exitCode: typeof exitCode === 'number' ? exitCode : 1,
+          stdout: stdout || '',
+          stderr: stderr || (error && error.message ? error.message : ''),
+          executionTimeMs,
+        });
+      });
+    });
   }
 }
 

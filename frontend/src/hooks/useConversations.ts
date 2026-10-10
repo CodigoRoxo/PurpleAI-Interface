@@ -82,6 +82,20 @@ export function useConversations(currentModel: string) {
     }
   }, [activeConversationId]);
 
+  const clearConversationMessages = useCallback(async (id: string) => {
+    try {
+      const updated = await api.clearConversationMessages(id);
+      if (activeConversationId === id) {
+        setActiveConversation(updated);
+      }
+      await loadConversations();
+      return updated;
+    } catch (err) {
+      console.error('Erro ao limpar contexto da conversa:', err);
+      return null;
+    }
+  }, [activeConversationId, loadConversations]);
+
   useEffect(() => {
     loadConversations().then(list => {
       if (list.length > 0 && !activeConversationId) {
@@ -99,6 +113,7 @@ export function useConversations(currentModel: string) {
     newConversation,
     renameConversation,
     deleteConversation,
+    clearConversationMessages,
     refreshConversations: loadConversations,
     loading,
   };

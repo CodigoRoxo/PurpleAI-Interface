@@ -8,3 +8,4 @@ conversationsRouter.post('/', (req, res) => conversationsController.create(req, 
 conversationsRouter.get('/:id', (req, res) => conversationsController.getOne(req, res));
 conversationsRouter.patch('/:id', (req, res) => conversationsController.update(req, res));
 conversationsRouter.delete('/:id', (req, res) => conversationsController.delete(req, res));
+conversationsRouter.post('/:id/clear', (req, res) => conversationsController.clearMessages(req, res));

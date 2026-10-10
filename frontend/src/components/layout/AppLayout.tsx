@@ -41,7 +41,9 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   projectsCount,
   children,
 }) => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth >= 768 : true
+  );
 
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden cyber-grid-bg relative text-slate-100">

@@ -1,6 +1,6 @@
 import React from 'react';
 import { AlertCircle, X } from 'lucide-react';
-import { ChatMessage, ChatSourceCitation } from '../../types/chat';
+import { ChatMessage, ChatSourceCitation, ContextUsageInfo } from '../../types/chat';
 import { Project } from '../../types/project';
 import { MessageList } from './MessageList';
 import { MessageInput } from './MessageInput';
@@ -20,6 +20,8 @@ interface ChatAreaProps {
   projects?: Project[];
   activeProjectId?: string | null;
   onSelectProject?: (id: string | null) => void;
+  onClearContext?: () => void;
+  contextUsage?: ContextUsageInfo | null;
 }
 
 export const ChatArea: React.FC<ChatAreaProps> = ({
@@ -37,6 +39,8 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   projects = [],
   activeProjectId,
   onSelectProject,
+  onClearContext,
+  contextUsage,
 }) => {
   return (
     <main className="flex-1 flex flex-col h-full overflow-hidden bg-transparent relative">
@@ -73,6 +77,8 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
         projects={projects}
         activeProjectId={activeProjectId}
         onSelectProject={onSelectProject}
+        onClearContext={onClearContext}
+        contextUsage={contextUsage}
       />
     </main>
   );

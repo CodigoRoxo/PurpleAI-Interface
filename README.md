@@ -68,16 +68,20 @@ Além de um chat com streaming fluido em tempo real, o PurpleAI inclui:
 - 🔒 **100% Local & Privado**: Zero telemetria, zero requisições para servidores externos. Tudo roda no seu computador.
 - ⚡ **Detecção Automática do Ollama**: Verifica status e sincroniza automaticamente a lista de modelos instalados (`llama3`, `qwen2.5-coder`, `deepseek-r1`, `mistral`, etc.).
 - 🌊 **Streaming em Tempo Real (SSE)**: Respostas exibidas de imediato com cancelamento instantâneo via botão "Parar".
+- 📊 **Monitor de Contexto em Tempo Real (HUD Progress Bar)**: Medidor visual com tokens de Prompt, RAG, Histórico e Resposta vs. capacidade máxima (`num_ctx`), com gradientes de cores dinâmicos (roxo, âmbar e vermelho pulsante) e popover de detalhamento.
+- 🧹 **Gestão & Poda Inteligente de Contexto**: Poda automática de mensagens antigas para evitar estouro de memória da LLM (`exceeds available context size`) e botão "Limpar Ctx" para reiniciar o histórico com 1 clique.
+- 🪟 **Layout Widescreen & Menu Retrátil**: Área de chat ampliada (`max-w-[1550px]`) e blocos de código em largura total sem quebras artificiais, com botão no cabeçalho para recolher a barra lateral em modo imersivo.
 - 📚 **Motor RAG Embutido**:
   - Ingestão de arquivos `.pdf`, `.md`, `.txt`, `.c`, `.cpp`, `.rs`, `.py`, `.ts`, etc.
   - Chunking inteligente por parágrafos e funções de código.
   - Embeddings vetoriais locais e busca semântica por similaridade de cosseno.
   - Citações de fontes interativas no chat.
 - 💻 **Assistente de Código & Modificador de Projetos**:
-  - Gerencie projetos de código pelo caminho local.
+  - Gerencie projetos de código pelo caminho local no seu computador.
   - Árvore interativa de diretórios e arquivos com leitor de código integrado.
-  - Contextualização do projeto direto no prompt do modelo.
-  - **Cards de Ação de Arquivos**: Quando o modelo sugere uma alteração ou novo arquivo, um botão interativo **"Aplicar Alteração"** salva o arquivo no seu disco e cria automaticamente uma cópia de segurança (`.bak`).
+  - Contextualização automática do projeto direto no prompt do modelo.
+  - **Cards Interativos de Diff & Patch**: Visualize alterações cirúrgicas (`SEARCH/REPLACE diff`) ou substituição completa com suporte a aplicação direta no disco e backup automático de segurança (`.bak`).
+  - Terminal embutido para execução de comandos e builds diretamente no diretório do projeto.
 - 🎨 **Syntax Highlighting Completo**: Destaque de código com suporte a C, C++, Assembly (MASM/NASM), Rust, Python, Go, TypeScript, JSON, Bash e mais.
 - 💾 **Persistência Atômica**: Histórico de chats, coleções e projetos salvos localmente em JSON de forma atômica.
 

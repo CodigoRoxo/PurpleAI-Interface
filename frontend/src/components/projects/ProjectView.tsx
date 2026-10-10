@@ -15,7 +15,10 @@ import {
   ChevronRight, 
   ChevronDown, 
   Copy, 
-  Check 
+  Check,
+  Terminal,
+  Play,
+  Send
 } from 'lucide-react';
 import { api } from '../../services/api';
 import hljs from 'highlight.js';
@@ -62,12 +65,18 @@ export const ProjectView: React.FC<ProjectViewProps> = ({
   const [searching, setSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<ProjectSearchResult[]>([]);
 
+  const [terminalCommand, setTerminalCommand] = useState('');
+  const [runningCommand, setRunningCommand] = useState(false);
+  const [commandOutput, setCommandOutput] = useState<{ exitCode: number; stdout: string; stderr: string; executionTimeMs: number } | null>(null);
+  const [copiedError, setCopiedError] = useState(false);
+
   useEffect(() => {
     if (!activeProjectId) {
       setTree([]);
       setSelectedFile(null);
       setFileContent(null);
       setSearchResults([]);
+      setCommandOutput(null);
       return;
     }
 
@@ -232,6 +241,45 @@ export const ProjectView: React.FC<ProjectViewProps> = ({
         </button>
       );
     });
+  };
+
+  const handleRunCommand = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeProjectId || !terminalCommand.trim()) return;
+
+    setRunningCommand(true);
+    try {
+      const result = await api.runProjectCommand(activeProjectId, terminalCommand.trim());
+      setCommandOutput(result);
+    } catch (err: any) {
+      setCommandOutput({
+        exitCode: 1,
+        stdout: '',
+        stderr: err.message || 'Erro ao executar comando',
+        executionTimeMs: 0,
+      });
+    } finally {
+      setRunningCommand(false);
+    }
+  };
+
+  const handleSendErrorToChat = async () => {
+    if (!commandOutput || !activeProjectId) return;
+    const errorText = commandOutput.stderr || commandOutput.stdout;
+    const promptText = `O comando \`${terminalCommand}\` falhou no projeto com o seguinte erro:\n\n\`\`\`\n${errorText}\n\`\`\`\nPor favor, analise a causa do erro nos arquivos do projeto e proponha a correção cirúrgica necessária para resolver o problema.`;
+
+    try {
+      await navigator.clipboard.writeText(promptText);
+      setCopiedError(true);
+      setTimeout(() => setCopiedError(false), 3000);
+      if (onOpenChat) {
+        onOpenChat(activeProjectId);
+      }
+    } catch {
+      if (onOpenChat) {
+        onOpenChat(activeProjectId);
+      }
+    }
   };
 
   return (
@@ -561,6 +609,88 @@ export const ProjectView: React.FC<ProjectViewProps> = ({
                         </pre>
                       </div>
                     ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-[#100f1c] rounded-xl border border-[#2a264a] p-6 shadow-xl">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <Terminal className="w-5 h-5 text-emerald-400" />
+                    <div>
+                      <h3 className="text-base font-semibold text-slate-200">Terminal & Execução de Comandos</h3>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        Execute comandos de build, compilação ou testes diretamente na raiz do projeto (ex: <code className="text-purple-300">npm run build</code>, <code className="text-purple-300">cargo check</code>, <code className="text-purple-300">make</code>).
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <form onSubmit={handleRunCommand} className="flex gap-2 mb-4">
+                  <div className="relative flex-1">
+                    <span className="absolute left-3 top-2.5 text-xs font-mono text-slate-500 select-none">$</span>
+                    <input
+                      type="text"
+                      value={terminalCommand}
+                      onChange={e => setTerminalCommand(e.target.value)}
+                      placeholder="Ex: npm test, cargo check, gcc src/main.c -o main, python test.py..."
+                      className="w-full pl-7 pr-3 py-2 bg-[#0b0a13] border border-[#2a264a] rounded-lg text-sm text-slate-200 font-mono outline-none focus:border-purple-500/50"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={runningCommand || !terminalCommand.trim()}
+                    className="flex items-center gap-2 px-5 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-50 text-white text-xs font-medium rounded-lg shadow-md shadow-emerald-950/30 transition-all active:scale-95"
+                  >
+                    {runningCommand ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
+                    <span>{runningCommand ? 'Executando...' : 'Executar'}</span>
+                  </button>
+                </form>
+
+                {commandOutput && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between text-xs font-mono px-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-slate-400">Status:</span>
+                        {commandOutput.exitCode === 0 ? (
+                          <span className="px-2 py-0.5 rounded bg-emerald-950/70 text-emerald-400 border border-emerald-800/50 font-semibold flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3" /> Sucesso (Exit 0)
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded bg-rose-950/70 text-rose-400 border border-rose-800/50 font-semibold flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" /> Falha (Exit {commandOutput.exitCode})
+                          </span>
+                        )}
+                        <span className="text-slate-500">em {commandOutput.executionTimeMs}ms</span>
+                      </div>
+
+                      {commandOutput.exitCode !== 0 && onOpenChat && (
+                        <button
+                          onClick={handleSendErrorToChat}
+                          className="flex items-center gap-1.5 px-3 py-1 bg-purple-600/30 hover:bg-purple-600/50 text-purple-300 border border-purple-500/40 rounded-lg text-xs font-sans transition-colors"
+                          title="Copia o erro para a área de transferência e abre o chat para a IA corrigir"
+                        >
+                          <Send className="w-3 h-3" />
+                          <span>{copiedError ? 'Copiado! Abrindo Chat...' : 'Pedir Correção para a IA'}</span>
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="rounded-lg border border-[#232042] bg-[#07050e] p-3 text-xs font-mono max-h-72 overflow-y-auto">
+                      {commandOutput.stdout && (
+                        <pre className="text-slate-300 whitespace-pre-wrap leading-relaxed m-0">
+                          {commandOutput.stdout}
+                        </pre>
+                      )}
+                      {commandOutput.stderr && (
+                        <pre className="text-rose-400 whitespace-pre-wrap leading-relaxed m-0 mt-2">
+                          {commandOutput.stderr}
+                        </pre>
+                      )}
+                      {!commandOutput.stdout && !commandOutput.stderr && (
+                        <span className="text-slate-500 italic">O comando foi executado sem emitir saída de texto.</span>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
