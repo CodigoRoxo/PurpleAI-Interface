@@ -4,6 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import { env } from '../config/env.js';
 import { knowledgeController } from '../controllers/knowledge.controller.js';
+import { sanitizeFileName } from '../utils/paths.js';
 
 export const knowledgeRouter = Router();
 
@@ -18,7 +19,7 @@ const storage = multer.diskStorage({
   },
   filename: (_req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, `${uniqueSuffix}-${file.originalname}`);
+    cb(null, `${uniqueSuffix}-${sanitizeFileName(file.originalname)}`);
   },
 });
 

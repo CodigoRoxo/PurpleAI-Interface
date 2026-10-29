@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { projectService } from '../services/project.service.js';
 import { ollamaService } from '../services/ollama.service.js';
+import { env } from '../config/env.js';
 
 export class ProjectsController {
   async list(req: Request, res: Response): Promise<void> {
@@ -130,6 +131,11 @@ export class ProjectsController {
   }
 
   async runCommand(req: Request, res: Response): Promise<void> {
+    if (!env.ALLOW_SHELL_COMMANDS) {
+      res.status(403).json({ error: 'Execução de comandos desabilitada. Defina ALLOW_SHELL_COMMANDS=true no .env do backend para habilitar.' });
+      return;
+    }
+
     const { command } = req.body;
     if (!command || typeof command !== 'string') {
       res.status(400).json({ error: 'Command string is required' });

@@ -8,6 +8,7 @@ import { Project, ProjectSettings, ProjectFile, ProjectSearchResult, ProjectTree
 import { chunkerService } from './chunker.service.js';
 import { ollamaService } from './ollama.service.js';
 import { logger } from './logger.service.js';
+import { resolvePathInRoot, assertReasonableProjectRoot } from '../utils/paths.js';
 
 interface ProjectChunk {
   id: string;
@@ -67,13 +68,19 @@ export class ProjectService {
 
   async createProject(name: string, dirPath: string): Promise<Project> {
     await this.ensureInitialized();
-    
+
+    if (!path.isAbsolute(dirPath)) {
+      throw new Error('Informe o caminho absoluto da pasta do projeto');
+    }
+
     try {
       const stats = await fs.stat(dirPath);
       if (!stats.isDirectory()) throw new Error('Path is not a directory');
     } catch (e) {
       throw new Error(`Cannot access directory: ${dirPath}`);
     }
+
+    assertReasonableProjectRoot(await fs.realpath(dirPath));
 
     const project: Project = {
       id: randomUUID(),
@@ -243,16 +250,6 @@ export class ProjectService {
       .map(({ embedding: _e, ...rest }) => rest);
   }
 
-  private resolveSafePath(projectRoot: string, relativePath: string): string {
-    const cleanRel = relativePath.replace(/^[/\\]+/, '');
-    const resolvedRoot = path.resolve(projectRoot);
-    const resolvedPath = path.resolve(projectRoot, cleanRel);
-    if (!resolvedPath.startsWith(resolvedRoot)) {
-      throw new Error('Acesso negado: Caminho fora do diretório raiz do projeto');
-    }
-    return resolvedPath;
-  }
-
   async getProjectTree(projectId: string): Promise<ProjectTreeNode[]> {
     const project = await this.getProject(projectId);
     if (!project) throw new Error('Projeto não encontrado');
@@ -305,7 +302,7 @@ export class ProjectService {
     const project = await this.getProject(projectId);
     if (!project) throw new Error('Projeto não encontrado');
 
-    const safePath = this.resolveSafePath(project.path, relativePath);
+    const safePath = await resolvePathInRoot(project.path, relativePath);
     const stats = await fs.stat(safePath);
     if (!stats.isFile()) throw new Error('O caminho especificado não é um arquivo');
 
@@ -327,7 +324,7 @@ export class ProjectService {
     const project = await this.getProject(projectId);
     if (!project) throw new Error('Projeto não encontrado');
 
-    const safePath = this.resolveSafePath(project.path, relativePath);
+    const safePath = await resolvePathInRoot(project.path, relativePath);
     const normalizedRelPath = relativePath.replace(/\\/g, '/').replace(/^\//, '');
 
     await fs.mkdir(path.dirname(safePath), { recursive: true });
@@ -422,7 +419,7 @@ export class ProjectService {
     const project = await this.getProject(projectId);
     if (!project) throw new Error('Projeto não encontrado');
 
-    const safePath = this.resolveSafePath(project.path, relativePath);
+    const safePath = await resolvePathInRoot(project.path, relativePath);
     const normalizedRelPath = relativePath.replace(/\\/g, '/').replace(/^\//, '');
 
     if (forceOverwrite || !searchContent.trim()) {
@@ -526,6 +523,8 @@ export class ProjectService {
 
     const cleanCommand = command.trim();
     if (!cleanCommand) throw new Error('Comando não pode ser vazio');
+
+    logger.warn('PROJECT_COMMAND', `Executando em "${project.path}": ${cleanCommand}`);
 
     const t0 = Date.now();
     return new Promise((resolve) => {

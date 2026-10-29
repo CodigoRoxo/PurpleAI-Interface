@@ -197,10 +197,28 @@ To customize default ports or Ollama URLs, create a `.env` file inside `backend/
 
 ```env
 PORT=3001
-HOST=0.0.0.0
+HOST=127.0.0.1
 OLLAMA_HOST=http://localhost:11434
 EMBEDDING_MODEL=all-minilm
 OLLAMA_NUM_CTX=16384
+```
+
+### 🔒 Security
+
+The backend reads and writes files in your projects and can run terminal commands, so it ships locked down:
+
+- Listens on `127.0.0.1` only (not visible on your network).
+- Accepts requests only from the frontend (`ALLOWED_ORIGINS`) with a local `Host` header, which blocks malicious websites and DNS rebinding attacks.
+- Files can only be read/written inside the project folder (never inside `.git`), and the drive root or your home folder can't be added as a project.
+
+To reach it from another machine, you **must** set a token (the backend refuses to start without one). The Vite proxy sends it automatically:
+
+```env
+HOST=0.0.0.0
+PURPLEAI_API_TOKEN=a-long-random-secret
+ALLOWED_ORIGINS=http://192.168.0.10:3000
+# Terminal commands are off outside loopback; enable only on a network you trust
+ALLOW_SHELL_COMMANDS=false
 ```
 
 ---

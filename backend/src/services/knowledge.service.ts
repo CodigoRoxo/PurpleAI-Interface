@@ -7,6 +7,7 @@ import { KnowledgeSource, KnowledgeChunk, KnowledgeStats, SourceType } from '../
 import { chunkerService, RawChunk } from './chunker.service.js';
 import { vectorService } from './vector.service.js';
 import { ollamaService } from './ollama.service.js';
+import { sanitizeFileName } from '../utils/paths.js';
 
 const require = createRequire(import.meta.url);
 const pdfParse = require('pdf-parse');
@@ -77,6 +78,7 @@ export class KnowledgeService {
     collectionId?: string
   ): Promise<KnowledgeSource> {
     await this.ensureInitialized();
+    file = { ...file, originalname: sanitizeFileName(file.originalname) };
     const sourceId = randomUUID();
     const type = this.detectType(file.originalname);
     const now = Date.now();

@@ -2,14 +2,25 @@ import express from 'express';
 import cors from 'cors';
 import { env } from './config/env.js';
 import { apiRouter } from './routes/index.js';
+import { securityGuard, API_TOKEN_HEADER } from './middleware/security.js';
+
+if (!env.IS_LOOPBACK && !env.API_TOKEN) {
+  console.error(
+    `[SEGURANÇA] HOST=${env.HOST} expõe a API fora desta máquina. ` +
+    `Defina PURPLEAI_API_TOKEN no .env para continuar, ou use HOST=127.0.0.1.`
+  );
+  process.exit(1);
+}
 
 const app = express();
 
 app.use(cors({
-  origin: '*',
+  origin: env.ALLOWED_ORIGINS,
   methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', API_TOKEN_HEADER],
 }));
+
+app.use(securityGuard);
 
 app.use(express.json({ limit: '10mb' }));
 
@@ -43,6 +54,7 @@ const server = app.listen(env.PORT, env.HOST, () => {
   console.log(`  PurpleAI Backend rodando com sucesso!  `);
   console.log(`  URL: http://${env.HOST === '0.0.0.0' ? 'localhost' : env.HOST}:${env.PORT}`);
   console.log(`  Ollama Target: ${env.OLLAMA_HOST}`);
+  console.log(`  Comandos de terminal: ${env.ALLOW_SHELL_COMMANDS ? 'habilitados' : 'desabilitados'}`);
   console.log(`=========================================`);
 });
 

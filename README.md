@@ -197,10 +197,28 @@ Caso queira customizar portas ou o endereço do Ollama, você pode configurar um
 
 ```env
 PORT=3001
-HOST=0.0.0.0
+HOST=127.0.0.1
 OLLAMA_HOST=http://localhost:11434
 EMBEDDING_MODEL=all-minilm
 OLLAMA_NUM_CTX=16384
+```
+
+### 🔒 Segurança
+
+O backend lê e grava arquivos dos seus projetos e pode executar comandos de terminal, por isso ele vem travado por padrão:
+
+- Escuta apenas em `127.0.0.1` (não fica visível na rede).
+- Só aceita requisições do frontend (`ALLOWED_ORIGINS`) e com `Host` local, o que bloqueia sites maliciosos e ataques de DNS rebinding.
+- Arquivos só podem ser lidos/gravados dentro da pasta do projeto (fora de `.git`), e a raiz do disco ou a pasta do usuário não podem virar projeto.
+
+Para acessar de outra máquina da rede, defina **obrigatoriamente** um token (o backend se recusa a iniciar sem ele). O proxy do Vite envia o token automaticamente:
+
+```env
+HOST=0.0.0.0
+PURPLEAI_API_TOKEN=um-segredo-longo-e-aleatorio
+ALLOWED_ORIGINS=http://192.168.0.10:3000
+# Comandos de terminal ficam desligados fora do loopback; habilite só se confiar na rede
+ALLOW_SHELL_COMMANDS=false
 ```
 
 ---
