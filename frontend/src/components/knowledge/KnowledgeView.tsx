@@ -19,11 +19,13 @@ import {
   ToggleLeft,
   ToggleRight,
   Activity,
+  AlertTriangle,
 } from 'lucide-react';
 import {
   KnowledgeSource,
   KnowledgeChunk,
   KnowledgeCollection,
+  EmbeddingStatus,
   RAGDebugTrace,
   TestResult,
 } from '../../types/knowledge';
@@ -45,9 +47,11 @@ interface KnowledgeViewProps {
     totalChunks: number;
     totalSizeBytes: number;
     activeSources: number;
+    embedding?: EmbeddingStatus;
   };
   uploadFile: (file: File, collectionId?: string) => Promise<KnowledgeSource>;
   reindex: (id: string) => Promise<void>;
+  reindexStale?: () => Promise<void>;
   toggleSource: (id: string, enabled?: boolean) => Promise<void>;
   deleteSource: (id: string) => Promise<void>;
   testSearch: (query: string) => Promise<void>;
@@ -77,6 +81,7 @@ export const KnowledgeView: React.FC<KnowledgeViewProps> = ({
   stats,
   uploadFile,
   reindex,
+  reindexStale,
   toggleSource,
   deleteSource,
   testSearch,
@@ -100,6 +105,22 @@ export const KnowledgeView: React.FC<KnowledgeViewProps> = ({
   const [selectedSourceForChunks, setSelectedSourceForChunks] = useState<KnowledgeSource | null>(null);
   const [sourceChunks, setSourceChunks] = useState<KnowledgeChunk[]>([]);
   const [loadingChunks, setLoadingChunks] = useState(false);
+  const [reindexingStale, setReindexingStale] = useState(false);
+  const [reindexError, setReindexError] = useState<string | null>(null);
+  const embedding = stats.embedding;
+
+  const handleReindexStale = async () => {
+    if (!reindexStale) return;
+    setReindexingStale(true);
+    setReindexError(null);
+    try {
+      await reindexStale();
+    } catch (err) {
+      setReindexError(err instanceof Error ? err.message : 'Falha ao reindexar');
+    } finally {
+      setReindexingStale(false);
+    }
+  };
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -217,6 +238,46 @@ export const KnowledgeView: React.FC<KnowledgeViewProps> = ({
           />
         ) : (
           <div className="space-y-6">
+            {embedding && !embedding.installed && (
+              <div className="p-4 rounded-xl bg-amber-950/30 border border-amber-500/40 text-amber-200 text-xs flex items-start gap-3">
+                <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <div className="font-semibold text-amber-300">
+                    Modelo de embedding "{embedding.model}" não encontrado no Ollama
+                  </div>
+                  <div className="text-amber-200/80">
+                    A busca na base de conhecimento fica desligada até ele ser instalado. Rode no terminal:{' '}
+                    <code className="px-1.5 py-0.5 rounded bg-black/40 font-mono text-amber-100">ollama pull {embedding.model}</code>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {embedding?.installed && embedding.staleSources > 0 && (
+              <div className="p-4 rounded-xl bg-purple-950/40 border border-purple-600/40 text-purple-100 text-xs flex flex-col sm:flex-row sm:items-center gap-3">
+                <AlertTriangle className="w-4 h-4 text-purple-300 shrink-0" />
+                <div className="flex-1 space-y-1">
+                  <div className="font-semibold text-purple-200">
+                    {embedding.staleSources} fonte(s) indexada(s) com outro modelo de embedding
+                  </div>
+                  <div className="text-purple-200/70">
+                    Elas ficam fora da busca até serem reindexadas com "{embedding.model}". A reindexação roda em segundo plano, uma fonte por vez.
+                  </div>
+                  {reindexError && <div className="text-rose-300">{reindexError}</div>}
+                </div>
+                {reindexStale && (
+                  <button
+                    onClick={handleReindexStale}
+                    disabled={reindexingStale}
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg bg-purple-700 hover:bg-purple-600 disabled:opacity-60 text-white font-semibold transition-colors shrink-0"
+                  >
+                    <RotateCw className={`w-3.5 h-3.5 ${reindexingStale ? 'animate-spin' : ''}`} />
+                    Reindexar tudo
+                  </button>
+                )}
+              </div>
+            )}
+
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div className="p-4 rounded-xl bg-[#0c0b16]/80 backdrop-blur-md border border-[#232042] shadow-lg shadow-purple-950/10">
                 <div className="flex items-center gap-2 text-slate-500 mb-1 text-xs">

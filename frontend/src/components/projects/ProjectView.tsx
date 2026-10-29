@@ -33,6 +33,8 @@ interface ProjectViewProps {
   onReindexProject: (id: string) => Promise<void>;
   onSearchProject: (id: string, query: string) => Promise<ProjectSearchResult[]>;
   onOpenChat?: (projectId: string) => void;
+  /** Modelo de embedding atual do backend, para detectar índices desatualizados */
+  embeddingModel?: string;
 }
 
 export const ProjectView: React.FC<ProjectViewProps> = ({
@@ -45,6 +47,7 @@ export const ProjectView: React.FC<ProjectViewProps> = ({
   onReindexProject,
   onSearchProject,
   onOpenChat,
+  embeddingModel,
 }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
@@ -446,6 +449,15 @@ export const ProjectView: React.FC<ProjectViewProps> = ({
                     </button>
                   </div>
                 </div>
+
+                {embeddingModel && activeProject.status === 'ready' && activeProject.embeddingModel !== embeddingModel && (
+                  <div className="mb-4 p-3 rounded-lg bg-amber-950/30 border border-amber-500/40 text-amber-200 text-xs flex items-center gap-2 relative z-10">
+                    <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                    <span>
+                      Este projeto foi indexado com outro modelo de embedding. Clique em <b>Reindexar</b> para usar "{embeddingModel}" e voltar a buscar no código.
+                    </span>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 relative z-10">
                   <div className="bg-[#0b0a13] rounded-lg border border-[#1c1a32] p-4">

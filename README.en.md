@@ -107,8 +107,8 @@ Most developer AI tools today (such as GitHub Copilot, Cursor, or ChatGPT) come 
   # or
   ollama pull llama3.2
 
-  # Recommended Embedding model for RAG
-  ollama pull all-minilm
+  # Embedding model for RAG (multilingual: ask in any language about docs in another)
+  ollama pull bge-m3
   ```
 
 ### 2. Clone Repository
@@ -156,6 +156,8 @@ Select any model available in your local Ollama via the header dropdown. Send yo
 2. Create a collection and upload documents (technical PDFs, manuals, notes).
 3. Chat with the **RAG** toggle enabled; the assistant retrieves relevant excerpts and cites references directly.
 
+**Smart collection routing:** organize documents into collections (e.g. *Kernel & Drivers*, *Law*, *Python*). For every question, PurpleAI combines semantic search (embeddings) with exact-term search (BM25, great for identifiers like `IRP_MJ_CREATE`), figures out which collections actually hold the answer and uses **only those** as context. The message shows *"Searching: Kernel & Drivers"*, and the picker next to the RAG toggle lets you pin collections manually.
+
 ### 3. Project Workspace (Code Assistant)
 1. Open the **Projects** tab and click **New Project**.
 2. Enter a project name and its absolute path on your disk (e.g., `E:\MyProjects\App`).
@@ -185,7 +187,7 @@ Select any model available in your local Ollama via the header dropdown. Send yo
                                                    │         (http://localhost:11434)       │
                                                    │                                        │
                                                    │  - Chat LLMs (Qwen, DeepSeek, Llama)   │
-                                                   │  - Embeddings (all-minilm, bge, etc.)  │
+                                                   │  - Embeddings (bge-m3, nomic, etc.)    │
                                                    └────────────────────────────────────────┘
 ```
 
@@ -199,7 +201,7 @@ To customize default ports or Ollama URLs, create a `.env` file inside `backend/
 PORT=3001
 HOST=127.0.0.1
 OLLAMA_HOST=http://localhost:11434
-EMBEDDING_MODEL=all-minilm
+EMBEDDING_MODEL=bge-m3
 OLLAMA_NUM_CTX=16384
 ```
 

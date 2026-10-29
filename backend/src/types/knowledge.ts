@@ -24,6 +24,7 @@ export interface KnowledgeSource {
   statusMessage?: string;
   error?: string;
   enabled: boolean;
+  embeddingModel?: string;
   createdAt: number;
   updatedAt: number;
 }
@@ -43,6 +44,7 @@ export interface KnowledgeChunk {
   chunkIndex: number;
   text: string;
   embedding: number[];
+  embeddingModel?: string;
 }
 
 export interface KnowledgeSearchResult {
@@ -59,7 +61,34 @@ export interface KnowledgeSearchResult {
   endLine?: number;
   chunkIndex?: number;
   text: string;
+  /** Similaridade de cosseno com a pergunta (0-1) */
   score: number;
+  /** Pontuação BM25 (busca por palavras), quando houve match lexical */
+  lexicalScore?: number;
+  /** Pontuação combinada (Reciprocal Rank Fusion) usada para ordenar */
+  fusedScore?: number;
+}
+
+export interface KnowledgeRouteCollection {
+  /** null = fontes sem coleção */
+  id: string | null;
+  name: string;
+  color?: string;
+  score: number;
+}
+
+export interface KnowledgeRoute {
+  mode: 'auto' | 'manual';
+  selected: KnowledgeRouteCollection[];
+  considered: KnowledgeRouteCollection[];
+}
+
+export interface EmbeddingStatus {
+  model: string;
+  installed: boolean;
+  dimensions?: number;
+  error?: string;
+  staleSources: number;
 }
 
 export interface KnowledgeStats {
@@ -68,6 +97,7 @@ export interface KnowledgeStats {
   totalSizeBytes: number;
   activeSources: number;
   totalCollections?: number;
+  embedding?: EmbeddingStatus;
 }
 
 export interface RAGDebugChunk extends KnowledgeSearchResult {
@@ -90,6 +120,7 @@ export interface RAGDebugTrace {
     minScoreThreshold: number;
     latencyMs: number;
     chunks: RAGDebugChunk[];
+    route?: KnowledgeRoute;
   };
   prompt: {
     systemDirective: string;

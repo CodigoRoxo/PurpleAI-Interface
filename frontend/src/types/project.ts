@@ -8,6 +8,8 @@ export interface Project {
   status: 'idle' | 'indexing' | 'ready' | 'error';
   stats?: ProjectStats;
   settings?: ProjectSettings;
+  /** Modelo de embedding usado na última indexação */
+  embeddingModel?: string;
 }
 
 export interface ProjectStats {

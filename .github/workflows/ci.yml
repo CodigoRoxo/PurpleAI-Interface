@@ -32,8 +32,8 @@ jobs:
       - name: Build Backend
         run: cd backend && npm run build
 
-      - name: Security tests
-        run: cd backend && node --test tests/security.test.mjs
+      - name: Unit tests (security + retrieval)
+        run: cd backend && node --test tests/security.test.mjs tests/retrieval.test.mjs
 
       - name: Build Frontend
         run: cd frontend && npm run build

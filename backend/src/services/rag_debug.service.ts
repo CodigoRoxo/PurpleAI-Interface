@@ -5,6 +5,7 @@ import { env } from '../config/env.js';
 import { ollamaService } from './ollama.service.js';
 import { vectorService } from './vector.service.js';
 import { knowledgeService } from './knowledge.service.js';
+import { retrievalService } from './retrieval.service.js';
 import { logger } from './logger.service.js';
 import { RAGDebugTrace, RAGDebugChunk, KnowledgeSearchResult } from '../types/knowledge.js';
 import { MessageRole } from '../types/chat.js';
@@ -21,9 +22,9 @@ export class RAGDebugService {
 
     const tRetrievalStart = Date.now();
     const allChunks = await vectorService.getAllChunks();
-    const retrieved = await vectorService.search(queryEmbedding, topK, minScore);
+    const { results: retrieved, route } = await retrievalService.retrieve({ query, queryEmbedding, topK, minScore });
     const retrievalLatencyMs = Date.now() - tRetrievalStart;
-    logger.rag('DEBUG_RETRIEVAL', `Busca vetorial concluída: ${allChunks.length} avaliados, ${retrieved.length} acima de ${minScore} em ${retrievalLatencyMs}ms`);
+    logger.rag('DEBUG_RETRIEVAL', `Busca híbrida concluída: ${allChunks.length} indexados, ${retrieved.length} selecionados em ${retrievalLatencyMs}ms (rota: ${route.selected.map(c => c.name).join(', ') || 'nenhuma'})`);
 
     const debugChunks: RAGDebugChunk[] = retrieved.map((r: KnowledgeSearchResult, idx: number) => {
       const charCount = r.text.length;
@@ -120,6 +121,7 @@ export class RAGDebugService {
         minScoreThreshold: minScore,
         latencyMs: retrievalLatencyMs,
         chunks: debugChunks,
+        route,
       },
       prompt: {
         systemDirective,

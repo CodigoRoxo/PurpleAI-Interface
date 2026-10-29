@@ -32,6 +32,7 @@ const upload = multer({
 
 knowledgeRouter.get('/sources', (req, res) => knowledgeController.getSources(req, res));
 knowledgeRouter.post('/upload', upload.single('file'), (req, res) => knowledgeController.upload(req, res));
+knowledgeRouter.post('/reindex-stale', (req, res) => knowledgeController.reindexStale(req, res));
 knowledgeRouter.post('/search', (req, res) => knowledgeController.search(req, res));
 knowledgeRouter.post('/sources/:id/reindex', (req, res) => knowledgeController.reindex(req, res));
 knowledgeRouter.patch('/sources/:id/toggle', (req, res) => knowledgeController.toggle(req, res));

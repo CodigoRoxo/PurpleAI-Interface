@@ -58,6 +58,7 @@ export const App: React.FC = () => {
     uploadFile,
     reindex,
     toggleSource,
+    reindexStale,
     deleteSource,
     createCollection,
     deleteCollection,
@@ -83,6 +84,8 @@ export const App: React.FC = () => {
     isStreaming,
     useKnowledge: useKnowledgeState,
     setUseKnowledge: setUseKnowledgeState,
+    knowledgeCollectionId,
+    setKnowledgeCollectionId,
     error,
     clearError,
     contextUsage,
@@ -132,6 +135,9 @@ export const App: React.FC = () => {
           useKnowledge={useKnowledgeState}
           onToggleKnowledge={() => setUseKnowledgeState(prev => !prev)}
           activeKnowledgeCount={stats.activeSources}
+          knowledgeCollections={collections}
+          knowledgeCollectionId={knowledgeCollectionId}
+          onSelectKnowledgeCollection={setKnowledgeCollectionId}
           projects={projects}
           activeProjectId={activeProjectId}
           onSelectProject={setActiveProjectId}
@@ -155,6 +161,7 @@ export const App: React.FC = () => {
           stats={stats}
           uploadFile={uploadFile}
           reindex={reindex}
+          reindexStale={reindexStale}
           toggleSource={toggleSource}
           deleteSource={deleteSource}
           testSearch={testSearch}
@@ -182,6 +189,7 @@ export const App: React.FC = () => {
           onDeleteProject={deleteProject}
           onReindexProject={reindexProject}
           onSearchProject={searchProject}
+          embeddingModel={stats.embedding?.model}
           onOpenChat={projectId => {
             setActiveProjectId(projectId);
             setCurrentView('chat');

@@ -69,42 +69,72 @@ export class OllamaService {
     return response.body;
   }
 
+  private embeddingDimensions = new Map<string, number>();
+
   async generateEmbedding(text: string, modelOverride?: string): Promise<number[]> {
+    const [embedding] = await this.generateEmbeddings([text], modelOverride);
+    return embedding;
+  }
+
+  /** Gera embeddings em lote via /api/embed (com fallback para o endpoint legado /api/embeddings). */
+  async generateEmbeddings(texts: string[], modelOverride?: string): Promise<number[][]> {
     const model = modelOverride || env.EMBEDDING_MODEL;
-
-    try {
-      const res = await fetch(`${this.baseUrl}/api/embeddings`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model, prompt: text }),
-      });
-
-      if (res.ok) {
-        const data = await res.json() as { embedding?: number[] };
-        if (data.embedding && Array.isArray(data.embedding)) {
-          return data.embedding;
-        }
-      }
-    } catch {
-    }
+    if (texts.length === 0) return [];
 
     const res = await fetch(`${this.baseUrl}/api/embed`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model, input: text }),
+      body: JSON.stringify({ model, input: texts }),
     });
 
-    if (!res.ok) {
-      const err = await res.text();
-      throw new Error(`Falha ao gerar embedding [${res.status}]: ${err}`);
+    let embeddings: number[][] | undefined;
+    const errBody = res.ok ? '' : await res.text();
+    if (res.ok) {
+      const data = await res.json() as { embeddings?: number[][] };
+      embeddings = data.embeddings;
+    } else if (res.status === 404 && !errBody.includes('not found')) {
+      // Ollama antigo sem /api/embed
+      embeddings = [];
+      for (const text of texts) {
+        const legacy = await fetch(`${this.baseUrl}/api/embeddings`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model, prompt: text }),
+        });
+        if (!legacy.ok) {
+          throw new Error(`Falha ao gerar embedding [${legacy.status}]: ${await legacy.text()}`);
+        }
+        const data = await legacy.json() as { embedding?: number[] };
+        if (!data.embedding) break;
+        embeddings.push(data.embedding);
+      }
+    } else {
+      throw new Error(`Falha ao gerar embedding com "${model}" [${res.status}]: ${errBody}`);
     }
 
-    const data = await res.json() as { embeddings?: number[][] };
-    if (data.embeddings && data.embeddings.length > 0) {
-      return data.embeddings[0];
+    if (!embeddings || embeddings.length !== texts.length) {
+      throw new Error('Ollama não retornou vetores de embedding válidos');
     }
 
-    throw new Error('Ollama não retornou vetor de embedding válido');
+    this.embeddingDimensions.set(model, embeddings[0].length);
+    return embeddings;
+  }
+
+  /** Estado do modelo de embedding configurado: instalado no Ollama e dimensão dos vetores. */
+  async getEmbeddingStatus(): Promise<{ model: string; installed: boolean; dimensions?: number; error?: string }> {
+    const model = env.EMBEDDING_MODEL;
+    try {
+      const models = await this.listModels();
+      const installed = models.some(m => m.name === model || m.name === `${model}:latest`);
+      if (!installed) return { model, installed };
+
+      if (!this.embeddingDimensions.has(model)) {
+        await this.generateEmbedding('purpleai dimension probe');
+      }
+      return { model, installed, dimensions: this.embeddingDimensions.get(model) };
+    } catch (err) {
+      return { model, installed: false, error: err instanceof Error ? err.message : String(err) };
+    }
   }
 }
 

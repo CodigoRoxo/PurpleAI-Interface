@@ -2,6 +2,7 @@ import React from 'react';
 import { AlertCircle, X } from 'lucide-react';
 import { ChatMessage, ChatSourceCitation, ContextUsageInfo } from '../../types/chat';
 import { Project } from '../../types/project';
+import { KnowledgeCollection } from '../../types/knowledge';
 import { MessageList } from './MessageList';
 import { MessageInput } from './MessageInput';
 
@@ -17,6 +18,9 @@ interface ChatAreaProps {
   useKnowledge?: boolean;
   onToggleKnowledge?: () => void;
   activeKnowledgeCount?: number;
+  knowledgeCollections?: KnowledgeCollection[];
+  knowledgeCollectionId?: string;
+  onSelectKnowledgeCollection?: (id: string) => void;
   projects?: Project[];
   activeProjectId?: string | null;
   onSelectProject?: (id: string | null) => void;
@@ -36,6 +40,9 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   useKnowledge,
   onToggleKnowledge,
   activeKnowledgeCount,
+  knowledgeCollections,
+  knowledgeCollectionId,
+  onSelectKnowledgeCollection,
   projects = [],
   activeProjectId,
   onSelectProject,
@@ -74,6 +81,9 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
         useKnowledge={useKnowledge}
         onToggleKnowledge={onToggleKnowledge}
         activeKnowledgeCount={activeKnowledgeCount}
+        knowledgeCollections={knowledgeCollections}
+        knowledgeCollectionId={knowledgeCollectionId}
+        onSelectKnowledgeCollection={onSelectKnowledgeCollection}
         projects={projects}
         activeProjectId={activeProjectId}
         onSelectProject={onSelectProject}

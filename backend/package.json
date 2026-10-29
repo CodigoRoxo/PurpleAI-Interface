@@ -7,7 +7,7 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "test": "node --test tests/rag.test.mjs tests/security.test.mjs"
+    "test": "node --test tests/rag.test.mjs tests/security.test.mjs tests/retrieval.test.mjs"
   },
   "dependencies": {
     "cors": "^2.8.5",

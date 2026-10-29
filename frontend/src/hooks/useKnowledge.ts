@@ -58,7 +58,7 @@ export function useKnowledge() {
   }, [loadSources]);
 
   useEffect(() => {
-    const hasIndexing = sources.some(s => s.status === 'indexing');
+    const hasIndexing = sources.some(s => s.status === 'indexing' || s.status === 'pending');
     if (hasIndexing) {
       if (!pollIntervalRef.current) {
         pollIntervalRef.current = setInterval(() => {
@@ -103,6 +103,11 @@ export function useKnowledge() {
     } catch (err) {
       console.error('Erro ao reindexar fonte:', err);
     }
+  };
+
+  const reindexStale = async () => {
+    await api.reindexStaleKnowledge();
+    await loadSources();
   };
 
   const toggleSource = async (id: string, enabled?: boolean) => {
@@ -229,6 +234,7 @@ export function useKnowledge() {
     loadSources,
     uploadFile,
     reindex,
+    reindexStale,
     toggleSource,
     setSourceCollection,
     deleteSource,

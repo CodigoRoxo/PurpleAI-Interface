@@ -107,8 +107,8 @@ A grande maioria das ferramentas de IA para desenvolvedores hoje (como GitHub Co
   # ou
   ollama pull llama3.2
 
-  # Modelo de Embedding recomendado para a base RAG
-  ollama pull all-minilm
+  # Modelo de Embedding da base RAG (multilíngue: pergunte em PT sobre livros em EN)
+  ollama pull bge-m3
   ```
 
 ### 2. Clonar o Repositório
@@ -156,6 +156,8 @@ Selecione qualquer modelo disponível no seu Ollama através do dropdown superio
 2. Crie uma coleção e faça o upload de documentos (PDFs técnicos, guias, manuais, etc.).
 3. Ao conversar no chat com o botão **RAG** ativo, o assistente buscará os trechos mais relevantes dos seus documentos e fundamentará as respostas com base neles.
 
+**Roteamento inteligente por coleção:** organize os documentos em coleções (ex.: *Kernel & Drivers*, *Direito*, *Python*). A cada pergunta, o PurpleAI combina busca semântica (embeddings) com busca por palavra exata (BM25, ótima para identificadores como `IRP_MJ_CREATE`), descobre quais coleções realmente têm a resposta e usa **só elas** no contexto. A mensagem mostra *"Consultando: Kernel & Drivers"*, e o seletor ao lado do botão RAG permite fixar coleções manualmente.
+
 ### 3. Usando o Workspace de Projetos (Code Assistant)
 1. Acesse a aba **Projects** e clique em **Novo Projeto**.
 2. Digite o nome do projeto e o caminho absoluto da pasta no seu disco (ex: `E:\MeusProjetos\App`).
@@ -185,7 +187,7 @@ Selecione qualquer modelo disponível no seu Ollama através do dropdown superio
                                                    │         (http://localhost:11434)       │
                                                    │                                        │
                                                    │  - Chat LLMs (Qwen, DeepSeek, Llama)   │
-                                                   │  - Embeddings (all-minilm, bge, etc.)  │
+                                                   │  - Embeddings (bge-m3, nomic, etc.)    │
                                                    └────────────────────────────────────────┘
 ```
 
@@ -199,7 +201,7 @@ Caso queira customizar portas ou o endereço do Ollama, você pode configurar um
 PORT=3001
 HOST=127.0.0.1
 OLLAMA_HOST=http://localhost:11434
-EMBEDDING_MODEL=all-minilm
+EMBEDDING_MODEL=bge-m3
 OLLAMA_NUM_CTX=16384
 ```
 

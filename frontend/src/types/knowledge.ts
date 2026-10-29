@@ -50,6 +50,7 @@ export interface KnowledgeStats {
   totalSizeBytes: number;
   activeSources: number;
   totalCollections?: number;
+  embedding?: EmbeddingStatus;
 }
 
 export interface KnowledgeSearchResult {
@@ -67,7 +68,34 @@ export interface KnowledgeSearchResult {
   chunkIndex?: number;
   text: string;
   score: number;
+  lexicalScore?: number;
+  fusedScore?: number;
 }
+
+export interface KnowledgeRouteCollection {
+  /** null = fontes sem coleção */
+  id: string | null;
+  name: string;
+  color?: string;
+  score: number;
+}
+
+export interface KnowledgeRoute {
+  mode: 'auto' | 'manual';
+  selected: KnowledgeRouteCollection[];
+  considered: KnowledgeRouteCollection[];
+}
+
+export interface EmbeddingStatus {
+  model: string;
+  installed: boolean;
+  dimensions?: number;
+  error?: string;
+  staleSources: number;
+}
+
+/** Chave usada pelo backend para fontes sem coleção */
+export const NO_COLLECTION = '__none__';
 
 export interface RAGDebugChunk extends KnowledgeSearchResult {
   rank: number;
@@ -89,6 +117,7 @@ export interface RAGDebugTrace {
     minScoreThreshold: number;
     latencyMs: number;
     chunks: RAGDebugChunk[];
+    route?: KnowledgeRoute;
   };
   prompt: {
     systemDirective: string;

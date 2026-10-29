@@ -1,3 +1,5 @@
+import { KnowledgeRoute } from './knowledge';
+
 export type MessageRole = 'user' | 'assistant' | 'system';
 
 export interface ChatSourceCitation {
@@ -37,6 +39,7 @@ export interface ChatMessage {
   content: string;
   timestamp: number;
   sources?: ChatSourceCitation[];
+  knowledgeRoute?: KnowledgeRoute;
   contextPruned?: ContextPrunedInfo;
   contextUsage?: ContextUsageInfo;
 }

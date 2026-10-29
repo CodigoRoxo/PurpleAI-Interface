@@ -1,7 +1,7 @@
 import React, { memo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Bot, User, Copy, Check, Sparkles, AlertTriangle } from 'lucide-react';
+import { Bot, User, Copy, Check, Sparkles, AlertTriangle, Library } from 'lucide-react';
 import { ChatMessage, ChatSourceCitation } from '../../types/chat';
 import { CodeBlock } from './CodeBlock';
 import { FileActionCard } from './FileActionCard';
@@ -99,6 +99,30 @@ export const MessageItem: React.FC<MessageItemProps> = memo(({ message, isStream
               )}
             </button>
           </div>
+
+          {message.knowledgeRoute && message.knowledgeRoute.selected.length > 0 && (
+            <div
+              className="mb-2 flex items-center gap-1.5 flex-wrap text-[11px] text-slate-400 select-none"
+              title={message.knowledgeRoute.considered
+                .map(c => `${c.name}: ${Math.round(c.score * 100)}%`)
+                .join('\n')}
+            >
+              <Library className="w-3.5 h-3.5 text-purple-accent" />
+              <span>Consultando:</span>
+              {message.knowledgeRoute.selected.map(c => (
+                <span
+                  key={c.id ?? 'none'}
+                  className="px-1.5 py-0.5 rounded-md bg-[#1b1736] border border-[#3a3169] text-slate-200 inline-flex items-center gap-1"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: c.color || '#64748b' }} />
+                  {c.name}
+                </span>
+              ))}
+              <span className="text-slate-500 font-mono">
+                ({message.knowledgeRoute.mode === 'auto' ? 'auto' : 'manual'})
+              </span>
+            </div>
+          )}
 
           {message.sources && message.sources.length > 0 && (
             <div className="mb-3 p-2.5 rounded-xl bg-[#110f24] border border-[#2f2858] flex flex-wrap items-center justify-between gap-2 text-xs select-none">

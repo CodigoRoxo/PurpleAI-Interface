@@ -4,6 +4,7 @@ import { vectorService } from '../services/vector.service.js';
 import { ollamaService } from '../services/ollama.service.js';
 import { collectionService } from '../services/collection.service.js';
 import { ragDebugService } from '../services/rag_debug.service.js';
+import { retrievalService } from '../services/retrieval.service.js';
 
 export class KnowledgeController {
   async getSources(_req: Request, res: Response): Promise<void> {
@@ -103,6 +104,16 @@ export class KnowledgeController {
     }
   }
 
+  async reindexStale(_req: Request, res: Response): Promise<void> {
+    try {
+      const queued = await knowledgeService.reindexStaleSources();
+      res.json({ queued });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Erro ao reindexar fontes';
+      res.status(400).json({ error: msg });
+    }
+  }
+
   async getChunks(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
@@ -122,16 +133,15 @@ export class KnowledgeController {
         return;
       }
 
-      const queryEmbedding = await ollamaService.generateEmbedding(query);
-      const results = await vectorService.search(
-        queryEmbedding,
-        topK || 5,
-        minScore || 0.25,
+      const { results, route } = await retrievalService.retrieve({
+        query,
+        topK: topK || 5,
+        minScore: minScore || 0.2,
         sourceIds,
-        collectionId
-      );
+        manualCollectionIds: collectionId ? [collectionId] : undefined,
+      });
 
-      res.json({ results });
+      res.json({ results, route });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Erro ao realizar busca vetorial';
       res.status(500).json({ error: msg });
@@ -167,6 +177,7 @@ export class KnowledgeController {
     try {
       const { id } = req.params;
       const success = await collectionService.delete(id);
+      if (success) await knowledgeService.clearCollection(id);
       res.json({ success });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Erro ao excluir coleção';

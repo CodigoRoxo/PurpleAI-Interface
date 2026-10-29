@@ -21,6 +21,8 @@ export function useChatStream({
 }: UseChatStreamProps) {
   const [isStreaming, setIsStreaming] = useState<boolean>(false);
   const [useKnowledge, setUseKnowledge] = useState<boolean>(true);
+  /** '' = roteamento automático entre coleções; senão, coleção fixada pelo usuário */
+  const [knowledgeCollectionId, setKnowledgeCollectionId] = useState<string>('');
   const [contextUsage, setContextUsage] = useState<ContextUsageInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -115,8 +117,22 @@ export function useChatStream({
       messages: historyPayload,
       conversationId: targetConv.id,
       useKnowledge,
+      knowledgeCollectionIds: knowledgeCollectionId ? [knowledgeCollectionId] : undefined,
       projectId: activeProjectId || undefined,
       signal: controller.signal,
+      onKnowledgeRoute: (knowledgeRoute) => {
+        setActiveConversation(prev => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            messages: prev.messages.map(m =>
+              m.id === assistantPlaceholderId
+                ? { ...m, knowledgeRoute }
+                : m
+            ),
+          };
+        });
+      },
       onSources: (sources) => {
         setActiveConversation(prev => {
           if (!prev) return null;
@@ -189,6 +205,7 @@ export function useChatStream({
     selectedModel,
     isStreaming,
     useKnowledge,
+    knowledgeCollectionId,
     activeProjectId,
     newConversation,
     refreshConversations,
@@ -209,6 +226,8 @@ export function useChatStream({
     isStreaming,
     useKnowledge,
     setUseKnowledge,
+    knowledgeCollectionId,
+    setKnowledgeCollectionId,
     error,
     clearError: () => setError(null),
     contextUsage,

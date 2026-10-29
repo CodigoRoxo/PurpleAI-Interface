@@ -20,6 +20,7 @@ interface ProjectChunk {
   chunkIndex: number;
   text: string;
   embedding: number[];
+  embeddingModel?: string;
 }
 
 export class ProjectService {
@@ -174,9 +175,10 @@ export class ProjectService {
         totalSize += stats.size;
 
         const chunks = chunkerService.process(content, 'code', { filePath: relPath });
-        
-        for (const c of chunks) {
-          const embedding = await ollamaService.generateEmbedding(c.text);
+        const embeddings = await ollamaService.generateEmbeddings(chunks.map(c => c.text), env.EMBEDDING_MODEL);
+
+        for (const [idx, c] of chunks.entries()) {
+          const embedding = embeddings[idx];
           projectChunks.push({
             id: randomUUID(),
             projectId: project.id,
@@ -186,7 +188,8 @@ export class ProjectService {
             endLine: c.endLine || linesCount,
             chunkIndex: c.chunkIndex || 0,
             text: c.text,
-            embedding
+            embedding,
+            embeddingModel: env.EMBEDDING_MODEL,
           });
         }
       } catch (err) {
@@ -204,6 +207,7 @@ export class ProjectService {
       indexedChunks: projectChunks.length
     };
     project.status = 'ready';
+    project.embeddingModel = env.EMBEDDING_MODEL;
     project.lastIndexedAt = Date.now();
     project.updatedAt = Date.now();
     
@@ -237,7 +241,15 @@ export class ProjectService {
     const chunks = await this.loadProjectVectors(projectId);
     if (!chunks.length) return [];
 
-    const scored = chunks.map(chunk => ({
+    const compatible = chunks.filter(chunk =>
+      chunk.embedding.length === embedding.length &&
+      (!chunk.embeddingModel || chunk.embeddingModel === env.EMBEDDING_MODEL)
+    );
+    if (compatible.length < chunks.length) {
+      logger.warn('PROJECT_SEARCH', `${chunks.length - compatible.length} chunks do projeto ${projectId} foram vetorizados com outro modelo de embedding. Reindexe o projeto.`);
+    }
+
+    const scored = compatible.map(chunk => ({
       ...chunk,
       score: this.cosineSimilarity(embedding, chunk.embedding)
     }));
@@ -347,9 +359,10 @@ export class ProjectService {
 
       const linesCount = content.split('\n').length;
       const chunks = chunkerService.process(content, 'code', { filePath: normalizedRelPath });
+      const embeddings = await ollamaService.generateEmbeddings(chunks.map(c => c.text), env.EMBEDDING_MODEL);
 
-      for (const c of chunks) {
-        const embedding = await ollamaService.generateEmbedding(c.text);
+      for (const [idx, c] of chunks.entries()) {
+        const embedding = embeddings[idx];
         filteredChunks.push({
           id: randomUUID(),
           projectId: project.id,
@@ -360,6 +373,7 @@ export class ProjectService {
           chunkIndex: c.chunkIndex || 0,
           text: c.text,
           embedding,
+          embeddingModel: env.EMBEDDING_MODEL,
         });
         newChunksCount++;
       }

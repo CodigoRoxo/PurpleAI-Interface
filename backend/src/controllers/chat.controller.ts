@@ -3,11 +3,11 @@ import { randomUUID } from 'crypto';
 import { ollamaService } from '../services/ollama.service.js';
 import { storageService } from '../services/storage.service.js';
 import { knowledgeService } from '../services/knowledge.service.js';
-import { vectorService } from '../services/vector.service.js';
+import { retrievalService } from '../services/retrieval.service.js';
 import { projectService } from '../services/project.service.js';
 import { env } from '../config/env.js';
 import { ChatCompletionRequest, ChatMessage, ChatSourceCitation, MessageRole } from '../types/chat.js';
-import { KnowledgeSearchResult } from '../types/knowledge.js';
+import { KnowledgeRoute, KnowledgeSearchResult } from '../types/knowledge.js';
 import { logger } from '../services/logger.service.js';
 
 function estimateTokens(text: string): number {
@@ -158,6 +158,8 @@ export class ChatController {
 
     let citations: ChatSourceCitation[] = [];
     let effectiveMessages = [...messages];
+    let queryEmbedding: number[] | undefined;
+    let knowledgeRoute: KnowledgeRoute | undefined;
 
     if (req.body.useKnowledge !== false && lastUserMessage.role === 'user') {
       try {
@@ -167,13 +169,21 @@ export class ChatController {
         const activeSourceIds = req.body.selectedSourceIds || await knowledgeService.getActiveSourceIds();
         if (activeSourceIds.length > 0) {
           const t0 = Date.now();
-          const queryEmbedding = await ollamaService.generateEmbedding(lastUserMessage.content);
-          const embedLatency = Date.now() - t0;
-          logger.rag('EMBEDDING_DONE', `Embedding gerado em ${embedLatency}ms (${queryEmbedding.length} dimensões)`);
+          const retrieval = await retrievalService.retrieve({
+            query: lastUserMessage.content,
+            topK: 4,
+            minScore: 0.20,
+            sourceIds: activeSourceIds,
+            manualCollectionIds: req.body.knowledgeCollectionIds,
+          });
+          queryEmbedding = retrieval.queryEmbedding;
+          knowledgeRoute = retrieval.route;
+          const retrieved = retrieval.results;
+          const searchLatency = Date.now() - t0;
 
-          const t1 = Date.now();
-          const retrieved = await vectorService.search(queryEmbedding, 4, 0.20, activeSourceIds);
-          const searchLatency = Date.now() - t1;
+          const routeNames = retrieval.route.selected.map(c => c.name).join(', ') || '(nenhuma)';
+          logger.rag('ROUTE', `Rota ${retrieval.route.mode === 'auto' ? 'automática' : 'manual'}: ${routeNames} (${retrieval.chunksEvaluated} chunks avaliados)`);
+          res.write(`data: ${JSON.stringify({ type: 'knowledge_route', route: retrieval.route })}\n\n`);
 
           if (retrieved.length > 0) {
             const topScore = retrieved[0].score;
@@ -225,7 +235,7 @@ export class ChatController {
               ...effectiveMessages,
             ];
           } else {
-            logger.rag('RETRIEVAL_EMPTY', `Nenhum chunk atingiu o limiar de relevância mínimo (0.20)`);
+            logger.rag('RETRIEVAL_EMPTY', `Nenhum chunk relevante nas coleções roteadas`);
           }
         }
       } catch (ragErr) {
@@ -238,7 +248,7 @@ export class ChatController {
         const project = await projectService.getProject(req.body.projectId);
         if (project) {
           logger.info('PROJECT_CHAT', `Contextualizando com o projeto "${project.name}" (${project.id})`);
-          const queryEmbedding = await ollamaService.generateEmbedding(lastUserMessage.content);
+          queryEmbedding ??= await ollamaService.generateEmbedding(lastUserMessage.content);
           const projectChunks = await projectService.search(project.id, queryEmbedding, 8, 0.15);
           const fileList = await projectService.getProjectFileList(project.id, 60);
 
@@ -448,6 +458,7 @@ export class ChatController {
           content: fullAssistantResponse,
           timestamp: Date.now(),
           sources: citations.length > 0 ? citations : undefined,
+          knowledgeRoute,
           contextPruned: pruneInfo.pruned ? {
             prunedCount: pruneInfo.prunedCount,
             originalTokens: pruneInfo.originalTokens,
@@ -475,6 +486,7 @@ export class ChatController {
             content: fullAssistantResponse,
             timestamp: Date.now(),
             sources: citations.length > 0 ? citations : undefined,
+            knowledgeRoute,
           });
         }
         res.write(`data: ${JSON.stringify({ done: true, cancelled: true })}\n\n`);

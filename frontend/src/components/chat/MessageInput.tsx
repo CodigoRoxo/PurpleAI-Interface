@@ -1,7 +1,8 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { ArrowUp, Square, Sparkles, FolderCode, Eraser, Cpu, Info } from 'lucide-react';
+import { ArrowUp, Square, Sparkles, FolderCode, Eraser, Cpu, Info, Library } from 'lucide-react';
 import { Project } from '../../types/project';
 import { ContextUsageInfo } from '../../types/chat';
+import { KnowledgeCollection, NO_COLLECTION } from '../../types/knowledge';
 
 interface MessageInputProps {
   onSend: (message: string) => void;
@@ -11,6 +12,9 @@ interface MessageInputProps {
   useKnowledge?: boolean;
   onToggleKnowledge?: () => void;
   activeKnowledgeCount?: number;
+  knowledgeCollections?: KnowledgeCollection[];
+  knowledgeCollectionId?: string;
+  onSelectKnowledgeCollection?: (id: string) => void;
   projects?: Project[];
   activeProjectId?: string | null;
   onSelectProject?: (id: string | null) => void;
@@ -26,6 +30,9 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   useKnowledge = true,
   onToggleKnowledge,
   activeKnowledgeCount,
+  knowledgeCollections = [],
+  knowledgeCollectionId = '',
+  onSelectKnowledgeCollection,
   projects = [],
   activeProjectId,
   onSelectProject,
@@ -170,6 +177,30 @@ export const MessageInput: React.FC<MessageInputProps> = ({
                 </span>
               )}
             </button>
+          )}
+
+          {onToggleKnowledge && useKnowledge && onSelectKnowledgeCollection && knowledgeCollections.length > 0 && (
+            <div className="relative">
+              <select
+                value={knowledgeCollectionId}
+                onChange={e => onSelectKnowledgeCollection(e.target.value)}
+                className={`appearance-none pl-2.5 pr-6 py-1.5 rounded-xl text-xs font-mono font-medium cursor-pointer transition-all focus:outline-none max-w-[150px] truncate ${
+                  knowledgeCollectionId
+                    ? 'bg-purple-950/90 text-purple-300 border border-purple-700/60'
+                    : 'bg-[#141226] text-slate-400 border border-[#272445] hover:text-slate-300'
+                }`}
+                title="Coleções consultadas pelo RAG. Auto: o PurpleAI escolhe as coleções relevantes para cada pergunta"
+              >
+                <option value="" className="bg-[#111020] text-slate-300">Auto</option>
+                {knowledgeCollections.map(c => (
+                  <option key={c.id} value={c.id} className="bg-[#111020] text-slate-200">
+                    {c.name}
+                  </option>
+                ))}
+                <option value={NO_COLLECTION} className="bg-[#111020] text-slate-400">Sem coleção</option>
+              </select>
+              <Library className={`w-3 h-3 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none ${knowledgeCollectionId ? 'text-purple-400' : 'text-slate-500'}`} />
+            </div>
           )}
 
           {onClearContext && (

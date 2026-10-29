@@ -1,6 +1,6 @@
 import { Conversation, ConversationSummary, ChatSourceCitation, ContextPrunedInfo, ContextUsageInfo } from '../types/chat';
 import { OllamaModel, OllamaStatus } from '../types/model';
-import { KnowledgeSource, KnowledgeStats, KnowledgeChunk, KnowledgeSearchResult, KnowledgeCollection, RAGDebugTrace, TestResult } from '../types/knowledge';
+import { KnowledgeSource, KnowledgeStats, KnowledgeChunk, KnowledgeSearchResult, KnowledgeCollection, KnowledgeRoute, RAGDebugTrace, TestResult } from '../types/knowledge';
 import { Project, ProjectSearchResult, ProjectTreeNode } from '../types/project';
 
 const API_BASE = '/api';
@@ -243,6 +243,15 @@ export const api = {
     if (!res.ok) throw new Error('Falha ao excluir fonte');
   },
 
+  async reindexStaleKnowledge(): Promise<{ queued: number }> {
+    const res = await fetch(`${API_BASE}/knowledge/reindex-stale`, { method: 'POST' });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Falha ao reindexar fontes');
+    }
+    return res.json();
+  },
+
   async getKnowledgeChunks(sourceId: string): Promise<KnowledgeChunk[]> {
     const res = await fetch(`${API_BASE}/knowledge/sources/${sourceId}/chunks`);
     if (!res.ok) throw new Error('Falha ao buscar trechos da fonte');
@@ -343,10 +352,12 @@ export const api = {
     conversationId,
     useKnowledge,
     selectedSourceIds,
+    knowledgeCollectionIds,
     projectId,
     signal,
     onChunk,
     onSources,
+    onKnowledgeRoute,
     onContextPruned,
     onContextUsage,
     onDone,
@@ -357,10 +368,12 @@ export const api = {
     conversationId?: string;
     useKnowledge?: boolean;
     selectedSourceIds?: string[];
+    knowledgeCollectionIds?: string[];
     projectId?: string;
     signal?: AbortSignal;
     onChunk: (chunk: string) => void;
     onSources?: (sources: ChatSourceCitation[]) => void;
+    onKnowledgeRoute?: (route: KnowledgeRoute) => void;
     onContextPruned?: (info: ContextPrunedInfo) => void;
     onContextUsage?: (info: ContextUsageInfo) => void;
     onDone: () => void;
@@ -376,6 +389,7 @@ export const api = {
           conversationId,
           useKnowledge,
           selectedSourceIds,
+          knowledgeCollectionIds,
           projectId,
         }),
         signal,
@@ -422,6 +436,11 @@ export const api = {
 
               if (parsed.type === 'knowledge' && parsed.sources && onSources) {
                 onSources(parsed.sources);
+                continue;
+              }
+
+              if (parsed.type === 'knowledge_route') {
+                onKnowledgeRoute?.(parsed.route);
                 continue;
               }
 

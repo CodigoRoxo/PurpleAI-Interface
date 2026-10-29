@@ -1,3 +1,5 @@
+import { KnowledgeRoute } from './knowledge.js';
+
 export type MessageRole = 'user' | 'assistant' | 'system';
 
 export interface ChatSourceCitation {
@@ -37,6 +39,7 @@ export interface ChatMessage {
   content: string;
   timestamp: number;
   sources?: ChatSourceCitation[];
+  knowledgeRoute?: KnowledgeRoute;
   contextPruned?: ContextPrunedInfo;
   contextUsage?: ContextUsageInfo;
 }
@@ -50,6 +53,8 @@ export interface ChatCompletionRequest {
   conversationId?: string;
   useKnowledge?: boolean;
   selectedSourceIds?: string[];
+  /** Coleções escolhidas manualmente; vazio/ausente = roteamento automático */
+  knowledgeCollectionIds?: string[];
   projectId?: string;
   options?: {
     temperature?: number;

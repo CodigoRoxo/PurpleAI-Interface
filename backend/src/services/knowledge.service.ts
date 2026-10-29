@@ -3,7 +3,7 @@ import path from 'path';
 import { randomUUID } from 'crypto';
 import { createRequire } from 'module';
 import { env } from '../config/env.js';
-import { KnowledgeSource, KnowledgeChunk, KnowledgeStats, SourceType } from '../types/knowledge.js';
+import { KnowledgeSource, KnowledgeChunk, KnowledgeStats, SourceType, EmbeddingStatus } from '../types/knowledge.js';
 import { chunkerService, RawChunk } from './chunker.service.js';
 import { vectorService } from './vector.service.js';
 import { ollamaService } from './ollama.service.js';
@@ -60,6 +60,7 @@ export class KnowledgeService {
       totalChunks,
       totalSizeBytes,
       activeSources,
+      embedding: await this.getEmbeddingStatus(),
     };
   }
 
@@ -176,13 +177,12 @@ export class KnowledgeService {
 
       const knowledgeChunks: KnowledgeChunk[] = [];
       const total = rawChunks.length;
-      const BATCH_SIZE = 4;
+      const BATCH_SIZE = 16;
+      const embeddingModel = env.EMBEDDING_MODEL;
 
       for (let i = 0; i < total; i += BATCH_SIZE) {
         const batch = rawChunks.slice(i, i + BATCH_SIZE);
-        const embeddings = await Promise.all(
-          batch.map(raw => ollamaService.generateEmbedding(raw.text))
-        );
+        const embeddings = await ollamaService.generateEmbeddings(batch.map(raw => raw.text), embeddingModel);
 
         for (let j = 0; j < batch.length; j++) {
           const raw = batch[j];
@@ -201,6 +201,7 @@ export class KnowledgeService {
             chunkIndex: raw.chunkIndex ?? (i + j),
             text: raw.text,
             embedding: embeddings[j],
+            embeddingModel,
           });
         }
 
@@ -221,6 +222,7 @@ export class KnowledgeService {
       source.status = 'indexed';
       source.progress = 100;
       source.chunkCount = knowledgeChunks.length;
+      source.embeddingModel = embeddingModel;
       source.statusMessage = `Indexado com sucesso (${knowledgeChunks.length} chunks)`;
       source.error = undefined;
       source.updatedAt = Date.now();
@@ -293,7 +295,62 @@ export class KnowledgeService {
     source.collectionId = collectionId;
     source.updatedAt = Date.now();
     await this.persistSources();
+    await vectorService.setCollectionForSource(id, collectionId);
     return source;
+  }
+
+  /** Desvincula todas as fontes de uma coleção excluída. */
+  async clearCollection(collectionId: string): Promise<void> {
+    await this.ensureInitialized();
+    for (const source of this.sources.filter(s => s.collectionId === collectionId)) {
+      await this.setCollection(source.id, undefined);
+    }
+  }
+
+  async getEmbeddingStatus(): Promise<EmbeddingStatus> {
+    await this.ensureInitialized();
+    const status = await ollamaService.getEmbeddingStatus();
+    const stale = await vectorService.getStaleSourceIds(status.model, status.dimensions);
+    for (const source of this.sources) {
+      if (source.status === 'indexed' && source.embeddingModel && source.embeddingModel !== status.model) {
+        stale.add(source.id);
+      }
+    }
+    return { ...status, staleSources: stale.size };
+  }
+
+  /**
+   * Reindexa, uma por vez, todas as fontes vetorizadas com outro modelo de embedding.
+   * Roda em segundo plano; o progresso aparece no status de cada fonte.
+   */
+  async reindexStaleSources(): Promise<number> {
+    await this.ensureInitialized();
+    const status = await ollamaService.getEmbeddingStatus();
+    if (!status.installed) {
+      throw new Error(`O modelo de embedding "${status.model}" não está instalado. Rode: ollama pull ${status.model}`);
+    }
+
+    const staleIds = await vectorService.getStaleSourceIds(status.model, status.dimensions);
+    const stale = this.sources.filter(s =>
+      staleIds.has(s.id) || (s.status === 'indexed' && s.embeddingModel && s.embeddingModel !== status.model)
+    );
+
+    for (const source of stale) {
+      source.status = 'pending';
+      source.progress = 0;
+      source.statusMessage = 'Na fila para reindexação (novo modelo de embedding)...';
+    }
+    await this.persistSources();
+
+    (async () => {
+      for (const source of stale) {
+        if (!this.sources.includes(source)) continue;
+        source.status = 'indexing';
+        await this.processIndexPipeline(source);
+      }
+    })().catch(err => console.error('Erro na reindexação em lote:', err));
+
+    return stale.length;
   }
 
   async ingestDirectory(

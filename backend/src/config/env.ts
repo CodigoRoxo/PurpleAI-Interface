@@ -25,7 +25,7 @@ export const env = {
   DATA_DIR: process.env.DATA_DIR || path.resolve(__dirname, '../../data/conversations'),
   KNOWLEDGE_DIR: process.env.KNOWLEDGE_DIR || path.resolve(__dirname, '../../data/knowledge'),
   PROJECTS_DIR: process.env.PROJECTS_DIR || path.resolve(__dirname, '../../data/projects'),
-  EMBEDDING_MODEL: process.env.EMBEDDING_MODEL || 'all-minilm',
+  EMBEDDING_MODEL: process.env.EMBEDDING_MODEL || 'bge-m3',
   OLLAMA_NUM_CTX: parseInt(process.env.OLLAMA_NUM_CTX || '16384', 10),
   IS_DEV: process.env.NODE_ENV !== 'production',
 

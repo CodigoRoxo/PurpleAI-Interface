@@ -7,6 +7,7 @@ export class VectorService {
   private chunks: KnowledgeChunk[] = [];
   private initialized = false;
   private filePath: string;
+  private version = 0;
 
   constructor() {
     this.filePath = path.join(env.KNOWLEDGE_DIR, 'vectors.json');
@@ -25,7 +26,46 @@ export class VectorService {
     this.initialized = true;
   }
 
+  /** Muda sempre que os chunks mudam; usado para invalidar índices derivados (BM25). */
+  getVersion(): number {
+    return this.version;
+  }
+
+  /**
+   * Um chunk só pode ser comparado com a pergunta se foi vetorizado pelo mesmo modelo.
+   * Chunks antigos (sem `embeddingModel`) valem enquanto a dimensão bater.
+   */
+  isCompatible(chunk: KnowledgeChunk, model: string, dimensions: number): boolean {
+    if (chunk.embedding.length !== dimensions) return false;
+    return !chunk.embeddingModel || chunk.embeddingModel === model;
+  }
+
+  /** Fontes cujos vetores foram gerados por outro modelo de embedding e precisam ser reindexadas. */
+  async getStaleSourceIds(model: string, dimensions?: number): Promise<Set<string>> {
+    await this.ensureInitialized();
+    const stale = new Set<string>();
+    for (const chunk of this.chunks) {
+      const otherModel = chunk.embeddingModel && chunk.embeddingModel !== model;
+      const otherDims = dimensions !== undefined && chunk.embedding.length !== dimensions;
+      if (otherModel || otherDims) stale.add(chunk.sourceId);
+    }
+    return stale;
+  }
+
+  async setCollectionForSource(sourceId: string, collectionId?: string): Promise<void> {
+    await this.ensureInitialized();
+    let changed = false;
+    for (const chunk of this.chunks) {
+      if (chunk.sourceId === sourceId && chunk.collectionId !== collectionId) {
+        chunk.collectionId = collectionId;
+        changed = true;
+      }
+    }
+    if (changed) await this.persist();
+  }
+
   private async persist(): Promise<void> {
+    this.version++;
     const tempPath = `${this.filePath}.tmp.${Date.now()}`;
     await fs.writeFile(tempPath, JSON.stringify(this.chunks), 'utf-8');
     await fs.rename(tempPath, this.filePath);
@@ -93,6 +133,8 @@ export class VectorService {
     const candidates: KnowledgeSearchResult[] = [];
 
     for (const chunk of this.chunks) {
+      if (chunk.embedding.length !== queryEmbedding.length) continue;
+      if (chunk.embeddingModel && chunk.embeddingModel !== env.EMBEDDING_MODEL) continue;
       if (allowedSources && !allowedSources.has(chunk.sourceId)) {
         continue;
       }
