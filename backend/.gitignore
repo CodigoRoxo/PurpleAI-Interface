@@ -9,6 +9,8 @@ data/knowledge/*
 !data/knowledge/.gitkeep
 data/projects/*
 !data/projects/.gitkeep
+data/agent/*
+!data/agent/.gitkeep
 data/knowledge/uploads_temp/
 
 *.log

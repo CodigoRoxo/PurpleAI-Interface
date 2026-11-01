@@ -168,6 +168,14 @@ Select any model available in your local Ollama via the header dropdown. Send yo
 
 ---
 
+### 4. Agent Mode (edits the project on its own)
+1. Register the project in the **Projects** tab and open the **Agent** tab.
+2. Describe the task, e.g. *"rename the `sum` function to `add` and update its callers"*.
+3. The agent works in a tool loop: lists folders, greps, **reads whole files before editing** and applies exact search-and-replace edits across as many files as needed.
+4. Every step shows up in the timeline with its diff. Any edit can be rolled back with **Undo to here**, with no stray `.bak` files.
+
+Use a model with tool-calling support (e.g. `qwen3`, `qwen2.5-coder`, `llama3.1`+). The **Think** toggle enables extended reasoning on models that support it (slower, usually more accurate).
+
 ## 🏗️ System Architecture
 
 ```text

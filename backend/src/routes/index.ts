@@ -4,6 +4,7 @@ import { chatRouter } from './chat.routes.js';
 import { conversationsRouter } from './conversations.routes.js';
 import { knowledgeRouter } from './knowledge.routes.js';
 import { projectsRouter } from './projects.routes.js';
+import { agentRouter } from './agent.routes.js';
 
 export const apiRouter = Router();
 
@@ -12,3 +13,4 @@ apiRouter.use('/chat', chatRouter);
 apiRouter.use('/conversations', conversationsRouter);
 apiRouter.use('/knowledge', knowledgeRouter);
 apiRouter.use('/projects', projectsRouter);
+apiRouter.use('/agent', agentRouter);

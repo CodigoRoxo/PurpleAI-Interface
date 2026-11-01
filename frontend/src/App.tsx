@@ -11,9 +11,10 @@ import { ChatSourceCitation } from './types/chat';
 
 import { useProjects } from './hooks/useProjects';
 import { ProjectView } from './components/projects/ProjectView';
+import { AgentView } from './components/agent/AgentView';
 
 export const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'chat' | 'knowledge' | 'projects'>('chat');
+  const [currentView, setCurrentView] = useState<'chat' | 'knowledge' | 'projects' | 'agent'>('chat');
   const [activeContextSources, setActiveContextSources] = useState<ChatSourceCitation[] | null>(null);
 
   const {
@@ -118,7 +119,7 @@ export const App: React.FC = () => {
       onRenameConversation={renameConversation}
       onDeleteConversation={deleteConversation}
       currentView={currentView}
-      onNavigate={view => setCurrentView(view as 'chat' | 'knowledge' | 'projects')}
+      onNavigate={view => setCurrentView(view as 'chat' | 'knowledge' | 'projects' | 'agent')}
       activeKnowledgeCount={stats.activeSources}
       projectsCount={projects.length}
     >
@@ -178,6 +179,13 @@ export const App: React.FC = () => {
           onRunNegative={() => runNegative(selectedModel)}
           negativeResult={negativeResult}
           testingNegative={testingNegative}
+        />
+      ) : currentView === 'agent' ? (
+        <AgentView
+          projects={projects}
+          activeProjectId={activeProjectId}
+          onSelectProject={setActiveProjectId}
+          selectedModel={selectedModel}
         />
       ) : (
         <ProjectView 

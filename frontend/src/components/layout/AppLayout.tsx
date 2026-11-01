@@ -16,8 +16,8 @@ interface AppLayoutProps {
   onNewConversation: () => void;
   onRenameConversation: (id: string, newTitle: string) => void;
   onDeleteConversation: (id: string) => void;
-  currentView: 'chat' | 'knowledge' | 'projects';
-  onNavigate: (view: 'chat' | 'knowledge' | 'projects') => void;
+  currentView: 'chat' | 'knowledge' | 'projects' | 'agent';
+  onNavigate: (view: 'chat' | 'knowledge' | 'projects' | 'agent') => void;
   activeKnowledgeCount?: number;
   projectsCount?: number;
   children: React.ReactNode;

@@ -69,6 +69,37 @@ export class OllamaService {
     return response.body;
   }
 
+  /** Capacidades declaradas pelo modelo (ex.: "tools", "thinking"); null se o Ollama não informar. */
+  async getModelCapabilities(model: string): Promise<string[] | null> {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/show`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model }),
+      });
+      if (!res.ok) return null;
+      const data = await res.json() as { capabilities?: string[] };
+      return Array.isArray(data.capabilities) ? data.capabilities : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Streaming de /api/chat com corpo livre (tools, think...), usado pelo agente. */
+  async streamChatRaw(body: Record<string, unknown>, abortSignal?: AbortSignal): Promise<ReadableStream<Uint8Array>> {
+    const response = await fetch(`${this.baseUrl}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stream: true, keep_alive: '60m', ...body }),
+      signal: abortSignal,
+    });
+    if (!response.ok) {
+      throw new Error(`Erro do Ollama [${response.status}]: ${await response.text()}`);
+    }
+    if (!response.body) throw new Error('Ollama não retornou corpo de resposta de streaming');
+    return response.body;
+  }
+
   private embeddingDimensions = new Map<string, number>();
 
   async generateEmbedding(text: string, modelOverride?: string): Promise<number[]> {

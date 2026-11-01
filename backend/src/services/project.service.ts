@@ -352,45 +352,72 @@ export class ProjectService {
 
     await fs.writeFile(safePath, content, 'utf-8');
 
-    let newChunksCount = 0;
-    try {
-      const existingChunks = await this.loadProjectVectors(projectId);
-      const filteredChunks = existingChunks.filter(c => c.filePath !== normalizedRelPath);
-
-      const linesCount = content.split('\n').length;
-      const chunks = chunkerService.process(content, 'code', { filePath: normalizedRelPath });
-      const embeddings = await ollamaService.generateEmbeddings(chunks.map(c => c.text), env.EMBEDDING_MODEL);
-
-      for (const [idx, c] of chunks.entries()) {
-        const embedding = embeddings[idx];
-        filteredChunks.push({
-          id: randomUUID(),
-          projectId: project.id,
-          filePath: normalizedRelPath,
-          language: c.language || 'text',
-          startLine: c.startLine || 1,
-          endLine: c.endLine || linesCount,
-          chunkIndex: c.chunkIndex || 0,
-          text: c.text,
-          embedding,
-          embeddingModel: env.EMBEDDING_MODEL,
-        });
-        newChunksCount++;
-      }
-
-      await fs.writeFile(this.getVectorsFilePath(projectId), JSON.stringify(filteredChunks), 'utf-8');
-
-      if (project.stats) {
-        project.stats.indexedChunks = filteredChunks.length;
-      }
-      project.updatedAt = Date.now();
-      await this.persist();
-      logger.info('PROJECT_FILE_SAVE', `Arquivo ${normalizedRelPath} salvo e ${newChunksCount} chunks re-indexados.`);
-    } catch (err) {
-      logger.error('PROJECT_FILE_SAVE', `Erro ao re-indexar arquivo ${normalizedRelPath}:`, err);
-    }
+    const newChunksCount = await this.reindexFile(projectId, normalizedRelPath, content);
 
     return { success: true, backupCreated, chunksCount: newChunksCount };
+  }
+
+  getIgnorePatterns(project: Project): string[] {
+    return project.settings?.ignorePatterns || this.DEFAULT_IGNORES;
+  }
+
+  /** Executa tarefas que mexem no arquivo de vetores de um projeto, uma por vez. */
+  private vectorLocks = new Map<string, Promise<unknown>>();
+  private withVectorLock<T>(projectId: string, task: () => Promise<T>): Promise<T> {
+    const previous = this.vectorLocks.get(projectId) || Promise.resolve();
+    const next = previous.catch(() => undefined).then(task);
+    this.vectorLocks.set(projectId, next);
+    return next;
+  }
+
+  /**
+   * Atualiza os chunks vetorizados de um arquivo após ele mudar no disco.
+   * content = null remove o arquivo do índice. Retorna quantos chunks foram gerados.
+   */
+  async reindexFile(projectId: string, relPath: string, content: string | null): Promise<number> {
+    const normalizedRelPath = relPath.replace(/\\/g, '/').replace(/^\//, '');
+    return this.withVectorLock(projectId, async () => {
+      const project = await this.getProject(projectId);
+      if (!project) return 0;
+
+      try {
+        const existingChunks = await this.loadProjectVectors(projectId);
+        const filteredChunks = existingChunks.filter(c => c.filePath !== normalizedRelPath);
+        let newChunksCount = 0;
+
+        if (content !== null && chunkerService.detectLanguage(path.basename(normalizedRelPath))) {
+          const linesCount = content.split('\n').length;
+          const chunks = chunkerService.process(content, 'code', { filePath: normalizedRelPath });
+          const embeddings = await ollamaService.generateEmbeddings(chunks.map(c => c.text), env.EMBEDDING_MODEL);
+
+          for (const [idx, c] of chunks.entries()) {
+            filteredChunks.push({
+              id: randomUUID(),
+              projectId: project.id,
+              filePath: normalizedRelPath,
+              language: c.language || 'text',
+              startLine: c.startLine || 1,
+              endLine: c.endLine || linesCount,
+              chunkIndex: c.chunkIndex || 0,
+              text: c.text,
+              embedding: embeddings[idx],
+              embeddingModel: env.EMBEDDING_MODEL,
+            });
+            newChunksCount++;
+          }
+        }
+
+        await fs.writeFile(this.getVectorsFilePath(projectId), JSON.stringify(filteredChunks), 'utf-8');
+        if (project.stats) project.stats.indexedChunks = filteredChunks.length;
+        project.updatedAt = Date.now();
+        await this.persist();
+        logger.info('PROJECT_REINDEX', `${normalizedRelPath}: ${newChunksCount} chunks re-indexados.`);
+        return newChunksCount;
+      } catch (err) {
+        logger.error('PROJECT_REINDEX', `Erro ao re-indexar ${normalizedRelPath}:`, err);
+        return 0;
+      }
+    });
   }
 
   async getProjectFileList(projectId: string, maxFiles = 100): Promise<string[]> {

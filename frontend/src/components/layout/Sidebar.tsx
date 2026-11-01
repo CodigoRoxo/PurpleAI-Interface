@@ -11,8 +11,8 @@ interface SidebarProps {
   onDelete: (id: string) => void;
   isOpen: boolean;
   onClose: () => void;
-  currentView: 'chat' | 'knowledge' | 'projects';
-  onNavigate: (view: 'chat' | 'knowledge' | 'projects') => void;
+  currentView: 'chat' | 'knowledge' | 'projects' | 'agent';
+  onNavigate: (view: 'chat' | 'knowledge' | 'projects' | 'agent') => void;
   activeKnowledgeCount?: number;
   projectsCount?: number;
 }
@@ -136,7 +136,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <NavItem view="chat" icon={MessagesSquare} label="Chats" />
               <NavItem view="knowledge" icon={Database} label="Knowledge" badge={activeKnowledgeCount} />
             <NavItem view="projects" icon={Code2} label="Projects" badge={projectsCount} />
-            <NavItem view="agents" icon={Cpu} label="Agents" disabled />
+            <NavItem view="agent" icon={Cpu} label="Agent" />
           </div>
         </div>
 
@@ -240,10 +240,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="flex-1 p-4 text-xs text-slate-400 space-y-4 overflow-y-auto">
             <div className="p-3 rounded-xl bg-[#110f22] border border-[#221e3f] space-y-2">
               <span className="text-[11px] font-semibold text-purple-300 uppercase tracking-wider block">
-                Sobre a RAG Local
+                {currentView === 'agent' ? 'Como o agente trabalha' : 'Sobre a RAG Local'}
               </span>
               <p className="text-slate-400 leading-relaxed text-[11px]">
-                Adicione PDFs, livros, documentações ou bases de código. Ao conversar no Chat com o RAG ativo, o PurpleAI injeta trechos exatos para fundamentar as respostas do modelo.
+                {currentView === 'agent'
+                  ? 'O agente explora o projeto, lê os arquivos que precisar e aplica as edições direto no disco. Cada edição aparece com o diff e pode ser desfeita. Use um modelo com suporte a ferramentas, como o qwen3.'
+                  : 'Adicione PDFs, livros, documentações ou bases de código. Ao conversar no Chat com o RAG ativo, o PurpleAI injeta trechos exatos para fundamentar as respostas do modelo.'}
               </p>
             </div>
             <button

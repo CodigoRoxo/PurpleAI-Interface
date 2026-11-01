@@ -168,6 +168,14 @@ Selecione qualquer modelo disponível no seu Ollama através do dropdown superio
 
 ---
 
+### 4. Modo Agente (edita o projeto sozinho)
+1. Cadastre o projeto na aba **Projects** e abra a aba **Agent**.
+2. Descreva a tarefa, por exemplo: *"renomeie a função `sum` para `add` e atualize quem a usa"*.
+3. O agente trabalha em loop com ferramentas: lista pastas, busca com grep, **lê os arquivos inteiros antes de editar** e aplica edições exatas (busca e substitui) em quantos arquivos forem necessários.
+4. Cada passo aparece na timeline com o diff. Qualquer edição pode ser revertida com **Desfazer até aqui**, sem arquivos `.bak` espalhados.
+
+Use um modelo com suporte a *tool calling* (ex.: `qwen3`, `qwen2.5-coder`, `llama3.1`+). O botão **Pensar** ativa o raciocínio estendido em modelos que suportam (mais lento, costuma errar menos).
+
 ## 🏗️ Arquitetura do Sistema
 
 ```text

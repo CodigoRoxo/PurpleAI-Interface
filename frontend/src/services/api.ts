@@ -1,5 +1,6 @@
 import { Conversation, ConversationSummary, ChatSourceCitation, ContextPrunedInfo, ContextUsageInfo } from '../types/chat';
 import { OllamaModel, OllamaStatus } from '../types/model';
+import { AgentEvent, AgentSession, AgentSessionSummary } from '../types/agent';
 import { KnowledgeSource, KnowledgeStats, KnowledgeChunk, KnowledgeSearchResult, KnowledgeCollection, KnowledgeRoute, RAGDebugTrace, TestResult } from '../types/knowledge';
 import { Project, ProjectSearchResult, ProjectTreeNode } from '../types/project';
 
@@ -344,6 +345,90 @@ export const api = {
     });
     if (!res.ok) throw new Error('Falha ao executar teste negativo');
     return res.json();
+  },
+
+  async listAgentSessions(projectId: string): Promise<AgentSessionSummary[]> {
+    const res = await fetch(`${API_BASE}/agent/sessions?projectId=${encodeURIComponent(projectId)}`);
+    if (!res.ok) throw new Error('Falha ao listar tarefas do agente');
+    return res.json();
+  },
+
+  async createAgentSession(projectId: string, model: string): Promise<AgentSession> {
+    const res = await fetch(`${API_BASE}/agent/sessions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ projectId, model }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Falha ao criar tarefa');
+    }
+    return res.json();
+  },
+
+  async getAgentSession(id: string): Promise<AgentSession> {
+    const res = await fetch(`${API_BASE}/agent/sessions/${id}`);
+    if (!res.ok) throw new Error('Tarefa não encontrada');
+    return res.json();
+  },
+
+  async deleteAgentSession(id: string): Promise<void> {
+    await fetch(`${API_BASE}/agent/sessions/${id}`, { method: 'DELETE' });
+  },
+
+  async stopAgent(id: string): Promise<void> {
+    await fetch(`${API_BASE}/agent/sessions/${id}/stop`, { method: 'POST' });
+  },
+
+  async revertAgentStep(id: string, stepId: string): Promise<{ files: string[] }> {
+    const res = await fetch(`${API_BASE}/agent/sessions/${id}/revert`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stepId }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Falha ao desfazer');
+    }
+    return res.json();
+  },
+
+  /** Executa uma mensagem no agente e repassa os eventos do stream (SSE). */
+  async runAgent(
+    id: string,
+    body: { message: string; model: string; think?: boolean },
+    onEvent: (event: AgentEvent) => void
+  ): Promise<void> {
+    const res = await fetch(`${API_BASE}/agent/sessions/${id}/run`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok || !res.body) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Falha ao iniciar o agente [${res.status}]`);
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    let buffer = '';
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const parts = buffer.split('\n\n');
+      buffer = parts.pop() || '';
+      for (const part of parts) {
+        const line = part.trim();
+        if (!line.startsWith('data: ')) continue;
+        try {
+          const data = JSON.parse(line.slice(6));
+          if (data && typeof data === 'object') onEvent(data as AgentEvent);
+        } catch {
+          // linha incompleta ou marcador final
+        }
+      }
+    }
   },
 
   async streamChat({
