@@ -1,4 +1,5 @@
 import { Workspace, ToolError, FileChange } from './workspace.js';
+import { runShellCommand } from './command-runner.js';
 
 /** Definições no formato de tool calling do Ollama (compatível com OpenAI). */
 export const AGENT_TOOLS = [
@@ -97,10 +98,77 @@ export const AGENT_TOOLS = [
   },
 ];
 
+export const RUN_COMMAND_TOOL = {
+  type: 'function',
+  function: {
+    name: 'run_command',
+    description: 'Run a shell command in the project folder to build, test or lint (e.g. "npm run build", "msbuild Driver.sln /p:Configuration=Debug", "cmake --build build"). The user must approve each command. Returns the exit code and the output (start and end). Do NOT use it to edit, move or delete files, install system software, or load/start drivers or services.',
+    parameters: {
+      type: 'object',
+      properties: {
+        command: { type: 'string', description: 'The command line to run.' },
+        cwd: { type: 'string', description: 'Subfolder to run in, relative to the project root. Default: project root.' },
+        timeout_seconds: { type: 'integer', description: 'Max run time (10-600). Default: 120.' },
+      },
+      required: ['command'],
+    },
+  },
+};
+
+export const SEARCH_KNOWLEDGE_TOOL = {
+  type: 'function',
+  function: {
+    name: 'search_knowledge',
+    description: "Search the user's knowledge base (books, docs, manuals indexed by the user) for reference material. Use it to check APIs, rules and concepts before making claims about them, and cite the source and page in your answer.",
+    parameters: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'What to look for, in natural language or exact identifiers.' },
+        collection: { type: 'string', description: 'Optional collection name to restrict the search.' },
+      },
+      required: ['query'],
+    },
+  },
+};
+
+export type ApprovalDecision = 'approved' | 'auto_approved' | 'denied';
+
+export interface KnowledgeHit {
+  sourceTitle: string;
+  pageNumber?: number;
+  chapter?: string;
+  filePath?: string;
+  score: number;
+  text: string;
+}
+
 export interface ToolContext {
   workspace: Workspace;
   /** Arquivo -> mtime da última leitura (compartilhado com a sessão) */
   fileReads: Record<string, number>;
+  signal?: AbortSignal;
+  /** Pede aprovação ao usuário para um comando; ausente = comandos desabilitados */
+  requestApproval?: (command: string, cwd: string) => Promise<ApprovalDecision>;
+  /** Busca na base de conhecimento; ausente = sem base ativa */
+  searchKnowledge?: (query: string, collection?: string) => Promise<{ hits: KnowledgeHit[]; collections: string[] }>;
+}
+
+/** Formata os trechos da base de conhecimento para o modelo, com a fonte de cada um. */
+export function formatKnowledgeHits(hits: KnowledgeHit[], collections: string[]): string {
+  if (hits.length === 0) {
+    return 'Nada relevante encontrado na base de conhecimento.' +
+      (collections.length ? ` Coleções consultadas: ${collections.join(', ')}. Tente outros termos.` : '');
+  }
+  const blocks = hits.map((hit, idx) => {
+    const meta = [
+      hit.pageNumber ? `p.${hit.pageNumber}` : '',
+      hit.chapter ? `"${hit.chapter}"` : '',
+      hit.filePath || '',
+    ].filter(Boolean).join(', ');
+    const text = hit.text.length > 1_500 ? `${hit.text.slice(0, 1_500)}…` : hit.text;
+    return `[${idx + 1}] ${hit.sourceTitle}${meta ? ` (${meta})` : ''} · ${Math.round(hit.score * 100)}%\n${text}`;
+  });
+  return `Coleções consultadas: ${collections.join(', ') || '(todas)'}\n\n${blocks.join('\n\n---\n\n')}`;
 }
 
 export interface ToolOutcome {
@@ -109,6 +177,8 @@ export interface ToolOutcome {
   /** Resumo curto para a timeline */
   summary: string;
   change?: FileChange;
+  /** Comando executado mas terminou com erro (para destacar na interface) */
+  commandFailed?: boolean;
 }
 
 const str = (v: unknown): string => (typeof v === 'string' ? v : v === undefined || v === null ? '' : String(v));
@@ -196,7 +266,48 @@ export async function executeTool(ctx: ToolContext, name: string, args: Record<s
       };
     }
 
+    case 'run_command': {
+      if (!ctx.requestApproval) {
+        throw new ToolError('Execução de comandos está desabilitada neste PurpleAI (ALLOW_SHELL_COMMANDS=false).');
+      }
+      const command = str(args.command).trim();
+      if (!command) throw new ToolError('O parâmetro "command" é obrigatório');
+      const cwdRel = normalizePath(str(args.cwd));
+      const cwdAbs = cwdRel ? await workspace.resolveDirectory(cwdRel) : workspace.root;
+      const timeoutSeconds = Math.min(600, Math.max(10, int(args.timeout_seconds) ?? 120));
+
+      const decision = await ctx.requestApproval(command, cwdRel || '.');
+      if (decision === 'denied') {
+        throw new ToolError('O usuário recusou este comando. Não tente de novo; siga sem ele ou pergunte ao usuário.');
+      }
+
+      const result = await runShellCommand(command, { cwd: cwdAbs, timeoutMs: timeoutSeconds * 1000, signal: ctx.signal });
+      const status = result.timedOut
+        ? `interrompido após ${timeoutSeconds}s (timeout)`
+        : result.aborted
+          ? 'cancelado'
+          : `exit code ${result.exitCode}`;
+      const where = cwdRel ? ` (em ${cwdRel})` : '';
+      return {
+        output: `$ ${command}${where}\n[${status} · ${(result.durationMs / 1000).toFixed(1)}s]\n\n${result.output || '(sem saída)'}`,
+        summary: `Executou "${command}" · ${result.exitCode === 0 ? 'sucesso' : status}`,
+        commandFailed: result.exitCode !== 0,
+      };
+    }
+
+    case 'search_knowledge': {
+      if (!ctx.searchKnowledge) throw new ToolError('Não há base de conhecimento ativa.');
+      const query = str(args.query).trim();
+      if (!query) throw new ToolError('O parâmetro "query" é obrigatório');
+      const collection = str(args.collection).trim() || undefined;
+      const { hits, collections } = await ctx.searchKnowledge(query, collection);
+      return {
+        output: formatKnowledgeHits(hits, collections),
+        summary: `Consultou a base "${query}" · ${hits.length} trecho(s)${collections.length ? ` em ${collections.join(', ')}` : ''}`,
+      };
+    }
+
     default:
-      throw new ToolError(`Ferramenta desconhecida: ${name}. Disponíveis: ${AGENT_TOOLS.map(t => t.function.name).join(', ')}`);
+      throw new ToolError(`Ferramenta desconhecida: ${name}. Disponíveis: ${[...AGENT_TOOLS, RUN_COMMAND_TOOL, SEARCH_KNOWLEDGE_TOOL].map(t => t.function.name).join(', ')}`);
   }
 }

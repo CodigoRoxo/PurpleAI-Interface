@@ -8,6 +8,8 @@ import path from 'path';
 const base = await fs.mkdtemp(path.join(os.tmpdir(), 'purpleai-agent-'));
 process.env.AGENT_DIR = path.join(base, 'agent');
 process.env.PROJECTS_DIR = path.join(base, 'projects');
+process.env.KNOWLEDGE_DIR = path.join(base, 'knowledge');
+process.env.DATA_DIR = path.join(base, 'conversations');
 process.env.OLLAMA_HOST = 'http://127.0.0.1:9';
 
 const { Workspace, ToolError } = await import('../dist/services/agent/workspace.js');
@@ -169,4 +171,68 @@ test('Desfazer - restaura arquivos editados e apaga os criados, em ordem inversa
 
   const saved = await agentStore.get(session.id);
   assert.equal(saved.timeline.filter(t => t.kind === 'revert').length, 2);
+});
+
+const { formatKnowledgeHits } = await import('../dist/services/agent/tools.js');
+
+test('run_command - pede aprovação, executa e devolve exit code e saída', async () => {
+  const ctx = await makeCtx(await makeProject());
+  const asked = [];
+  ctx.requestApproval = async (command, cwd) => {
+    asked.push({ command, cwd });
+    return 'approved';
+  };
+  const ok = await executeTool(ctx, 'run_command', { command: 'node -e "console.log(40 + 2)"' });
+  assert.deepEqual(asked, [{ command: 'node -e "console.log(40 + 2)"', cwd: '.' }]);
+  assert.match(ok.output, /exit code 0/);
+  assert.match(ok.output, /42/);
+  assert.equal(ok.commandFailed, false);
+
+  const fail = await executeTool(ctx, 'run_command', { command: 'node -e "process.exit(3)"', cwd: 'src' });
+  assert.match(fail.output, /exit code 3/);
+  assert.equal(fail.commandFailed, true);
+  assert.equal(asked[1].cwd, 'src');
+});
+
+test('run_command - recusa, desabilitado e cwd fora do projeto', async () => {
+  const ctx = await makeCtx(await makeProject());
+  await assert.rejects(executeTool(ctx, 'run_command', { command: 'echo oi' }), /desabilitada/);
+
+  ctx.requestApproval = async () => 'denied';
+  await assert.rejects(executeTool(ctx, 'run_command', { command: 'echo oi' }), /recusou/);
+
+  ctx.requestApproval = async () => 'approved';
+  await assert.rejects(executeTool(ctx, 'run_command', { command: 'echo oi', cwd: '..' }), /Acesso negado|não encontrado/);
+});
+
+test('run_command - cancelar mata o processo', async () => {
+  const ctx = await makeCtx(await makeProject());
+  const controller = new AbortController();
+  ctx.signal = controller.signal;
+  ctx.requestApproval = async () => 'approved';
+  setTimeout(() => controller.abort(), 300);
+  const started = Date.now();
+  const result = await executeTool(ctx, 'run_command', { command: 'node -e "setTimeout(() => {}, 20000)"' });
+  assert.match(result.output, /cancelado/);
+  assert.ok(Date.now() - started < 8000, 'não esperou o processo de 20s');
+});
+
+test('search_knowledge - formata fontes e usa o hook de busca', async () => {
+  const text = formatKnowledgeHits(
+    [{ sourceTitle: 'Windows Internals', pageNumber: 212, chapter: 'IRQL', score: 0.81, text: 'DISPATCH_LEVEL blocks paging.' }],
+    ['Kernel & Drivers']
+  );
+  assert.match(text, /Windows Internals \(p\.212, "IRQL"\) · 81%/);
+  assert.match(text, /Coleções consultadas: Kernel & Drivers/);
+  assert.match(formatKnowledgeHits([], ['Kernel']), /Nada relevante/);
+
+  const ctx = await makeCtx(await makeProject());
+  await assert.rejects(executeTool(ctx, 'search_knowledge', { query: 'irql' }), /Não há base/);
+  ctx.searchKnowledge = async (query, collection) => ({
+    hits: [{ sourceTitle: 'Livro', score: 0.5, text: `achei ${query} em ${collection}` }],
+    collections: [collection],
+  });
+  const out = await executeTool(ctx, 'search_knowledge', { query: 'spin lock', collection: 'Kernel' });
+  assert.match(out.output, /achei spin lock em Kernel/);
+  assert.match(out.summary, /1 trecho/);
 });

@@ -380,6 +380,18 @@ export const api = {
     await fetch(`${API_BASE}/agent/sessions/${id}/stop`, { method: 'POST' });
   },
 
+  async approveAgentStep(id: string, stepId: string, approved: boolean, remember = false): Promise<void> {
+    const res = await fetch(`${API_BASE}/agent/sessions/${id}/approve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stepId, approved, remember }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Falha ao responder a aprovação');
+    }
+  },
+
   async revertAgentStep(id: string, stepId: string): Promise<{ files: string[] }> {
     const res = await fetch(`${API_BASE}/agent/sessions/${id}/revert`, {
       method: 'POST',

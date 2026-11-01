@@ -14,9 +14,13 @@ export type AgentToolItem = TimelineBase & {
   kind: 'tool';
   name: string;
   args: Record<string, unknown>;
-  status: 'running' | 'ok' | 'error';
+  status: 'running' | 'awaiting' | 'ok' | 'error';
   summary: string;
   output?: string;
+  command?: string;
+  cwd?: string;
+  approval?: 'approved' | 'auto_approved' | 'denied';
+  failed?: boolean;
   filePath?: string;
   diff?: DiffLine[];
   added?: number;

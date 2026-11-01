@@ -31,9 +31,15 @@ export type TimelineItem =
       kind: 'tool';
       name: string;
       args: Record<string, unknown>;
-      status: 'running' | 'ok' | 'error';
+      /** awaiting = esperando o usuário aprovar um comando */
+      status: 'running' | 'awaiting' | 'ok' | 'error';
       summary: string;
       output?: string;
+      command?: string;
+      cwd?: string;
+      approval?: 'approved' | 'auto_approved' | 'denied';
+      /** Comando executou, mas terminou com erro */
+      failed?: boolean;
       filePath?: string;
       diff?: DiffLine[];
       added?: number;

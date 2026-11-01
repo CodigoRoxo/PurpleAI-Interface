@@ -136,6 +136,15 @@ export function useAgent(projectId: string | null, model: string) {
     if (session) await api.stopAgent(session.id);
   }, [session]);
 
+  const approve = useCallback(async (stepId: string, approved: boolean, remember = false) => {
+    if (!session) return;
+    try {
+      await api.approveAgentStep(session.id, stepId, approved, remember);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha ao responder a aprovação');
+    }
+  }, [session]);
+
   const revert = useCallback(async (stepId: string) => {
     if (!session) return;
     try {
@@ -162,6 +171,7 @@ export function useAgent(projectId: string | null, model: string) {
     newSession: () => selectSession(null),
     send,
     stop,
+    approve,
     revert,
     deleteSession,
   };

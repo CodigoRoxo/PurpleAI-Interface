@@ -173,6 +173,8 @@ Select any model available in your local Ollama via the header dropdown. Send yo
 2. Describe the task, e.g. *"rename the `sum` function to `add` and update its callers"*.
 3. The agent works in a tool loop: lists folders, greps, **reads whole files before editing** and applies exact search-and-replace edits across as many files as needed.
 4. Every step shows up in the timeline with its diff. Any edit can be rolled back with **Undo to here**, with no stray `.bak` files.
+5. **Builds and fixes on its own:** the agent can run builds and tests (`npm run build`, `msbuild`, `cmake`...) and fix errors until they pass. Every command asks for your approval (**Run**, **Always allow this command** or **Deny**). It never loads drivers or services: runtime testing stays with you, in a VM.
+6. **Checks your books:** with the Knowledge Base active, the agent uses `search_knowledge` to verify APIs and concepts in your documents before making claims, citing source and page.
 
 Use a model with tool-calling support (e.g. `qwen3`, `qwen2.5-coder`, `llama3.1`+). The **Think** toggle enables extended reasoning on models that support it (slower, usually more accurate).
 

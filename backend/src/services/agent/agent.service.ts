@@ -6,7 +6,18 @@ import { logger } from '../logger.service.js';
 import { ollamaService } from '../ollama.service.js';
 import { projectService } from '../project.service.js';
 import { agentStore } from './agent.store.js';
-import { AGENT_TOOLS, executeTool, ToolContext } from './tools.js';
+import { knowledgeService } from '../knowledge.service.js';
+import { collectionService } from '../collection.service.js';
+import { retrievalService } from '../retrieval.service.js';
+import {
+  AGENT_TOOLS,
+  ApprovalDecision,
+  executeTool,
+  KnowledgeHit,
+  RUN_COMMAND_TOOL,
+  SEARCH_KNOWLEDGE_TOOL,
+  ToolContext,
+} from './tools.js';
 import { ToolError, Workspace } from './workspace.js';
 
 const MAX_STEPS = 30;
@@ -19,7 +30,15 @@ const CONTEXT_PRESSURE = 0.7;
 const KEEP_RECENT_MESSAGES = 6;
 const ELIDED_NOTICE = '[saída antiga omitida para economizar contexto; chame a ferramenta de novo se precisar]';
 
-const TOOL_NAMES = new Set(AGENT_TOOLS.map(t => t.function.name));
+const TOOL_NAMES = new Set([...AGENT_TOOLS, RUN_COMMAND_TOOL, SEARCH_KNOWLEDGE_TOOL].map(t => t.function.name));
+
+type ToolItem = Extract<TimelineItem, { kind: 'tool' }>;
+
+interface RunCapabilities {
+  commands: boolean;
+  /** Nomes das coleções com fontes ativas; null = sem base de conhecimento */
+  knowledgeCollections: string[] | null;
+}
 
 export interface RunOptions {
   sessionId: string;
@@ -79,6 +98,8 @@ export function parseTextToolCalls(text: string): { calls: AgentToolCall[]; rest
 
 export class AgentService {
   private running = new Map<string, AbortController>();
+  /** `${sessionId}:${stepId}` -> resolve da aprovação pendente */
+  private pendingApprovals = new Map<string, (decision: ApprovalDecision) => void>();
 
   isRunning(sessionId: string): boolean {
     return this.running.has(sessionId);
@@ -91,8 +112,130 @@ export class AgentService {
     return true;
   }
 
-  private async buildSystemPrompt(projectName: string, workspace: Workspace): Promise<string> {
+  /**
+   * Responde a um pedido de aprovação de comando. Com `remember`, o comando exato
+   * fica liberado para as próximas execuções neste projeto.
+   */
+  async resolveApproval(sessionId: string, stepId: string, approved: boolean, remember = false): Promise<boolean> {
+    const resolve = this.pendingApprovals.get(`${sessionId}:${stepId}`);
+    if (!resolve) return false;
+
+    if (approved && remember) {
+      const session = await agentStore.get(sessionId);
+      const item = session?.timeline.find(t => t.id === stepId);
+      if (session && item?.kind === 'tool' && item.command) {
+        await projectService.allowCommand(session.projectId, item.command);
+      }
+    }
+    resolve(approved ? 'approved' : 'denied');
+    return true;
+  }
+
+  private async awaitApproval(
+    session: AgentSession,
+    item: ToolItem,
+    command: string,
+    cwd: string,
+    signal: AbortSignal,
+    update: (item: TimelineItem) => void
+  ): Promise<ApprovalDecision> {
+    item.command = command;
+    item.cwd = cwd;
+
+    const project = await projectService.getProject(session.projectId);
+    if (project?.settings?.allowedCommands?.includes(command)) {
+      item.approval = 'auto_approved';
+      update(item);
+      return 'auto_approved';
+    }
+
+    item.status = 'awaiting';
+    update(item);
+    await agentStore.save(session);
+
+    const key = `${session.id}:${item.id}`;
+    const decision = await new Promise<ApprovalDecision>(resolve => {
+      const onAbort = () => resolve('denied');
+      signal.addEventListener('abort', onAbort, { once: true });
+      this.pendingApprovals.set(key, value => {
+        signal.removeEventListener('abort', onAbort);
+        resolve(value);
+      });
+    });
+    this.pendingApprovals.delete(key);
+
+    item.status = 'running';
+    item.approval = decision;
+    update(item);
+    return decision;
+  }
+
+  private async searchKnowledge(query: string, collection?: string): Promise<{ hits: KnowledgeHit[]; collections: string[] }> {
+    let manualCollectionIds: string[] | undefined;
+    if (collection) {
+      const match = (await collectionService.list()).find(c => c.name.toLowerCase() === collection.toLowerCase());
+      if (match) manualCollectionIds = [match.id];
+    }
+    const { results, route } = await retrievalService.retrieve({ query, topK: 5, manualCollectionIds });
+    return {
+      hits: results.map(r => ({
+        sourceTitle: r.sourceTitle,
+        pageNumber: r.pageNumber,
+        chapter: r.chapter,
+        filePath: r.filePath,
+        score: r.score,
+        text: r.text,
+      })),
+      collections: route.selected.map(c => c.name),
+    };
+  }
+
+  private async detectCapabilities(): Promise<RunCapabilities> {
+    let knowledgeCollections: string[] | null = null;
+    try {
+      const activeIds = new Set(await knowledgeService.getActiveSourceIds());
+      if (activeIds.size > 0) {
+        const sources = (await knowledgeService.listSources()).filter(s => activeIds.has(s.id));
+        const collections = await collectionService.list();
+        const names = new Set<string>();
+        for (const source of sources) {
+          names.add(collections.find(c => c.id === source.collectionId)?.name ?? 'Sem coleção');
+        }
+        knowledgeCollections = [...names];
+      }
+    } catch (err) {
+      logger.warn('AGENT', `Base de conhecimento indisponível para o agente: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    return { commands: env.ALLOW_SHELL_COMMANDS, knowledgeCollections };
+  }
+
+  private toolsFor(caps: RunCapabilities) {
+    return [
+      ...AGENT_TOOLS,
+      ...(caps.commands ? [RUN_COMMAND_TOOL] : []),
+      ...(caps.knowledgeCollections ? [SEARCH_KNOWLEDGE_TOOL] : []),
+    ];
+  }
+
+  private async buildSystemPrompt(projectName: string, workspace: Workspace, caps: RunCapabilities): Promise<string> {
     const tree = (await workspace.listDir('.', 2)).split('\n').slice(0, 150).join('\n');
+    const extra: string[] = [];
+    if (caps.commands) {
+      extra.push(
+        '',
+        'Building and testing:',
+        '- Use run_command to build, test or lint, e.g. "npm run build", "npm test", "msbuild Project.sln /p:Configuration=Debug", "cmake --build build". The user approves each command.',
+        '- After editing code, build or test to verify. If it fails, read the errors, fix the code and build again until it passes (or explain what blocks you).',
+        '- Never use commands to edit or delete files (use the file tools), install system software, or load/start drivers or services. Testing a driver at runtime is always done by the user in a VM.',
+      );
+    }
+    if (caps.knowledgeCollections) {
+      extra.push(
+        '',
+        `Knowledge base: the user indexed reference material in these collections: ${caps.knowledgeCollections.join(', ')}.`,
+        '- Use search_knowledge to check APIs, rules and concepts before making claims about them (especially low-level details), and cite the source and page.',
+      );
+    }
     return [
       `You are PurpleAI Agent, an autonomous coding agent working inside the user's project "${projectName}".`,
       `Operating system: ${process.platform === 'win32' ? 'Windows' : process.platform}. Today: ${new Date().toISOString().slice(0, 10)}.`,
@@ -109,6 +252,7 @@ export class AgentService {
       '7. When the task is done, stop calling tools and reply with a short summary of what you changed (files and why).',
       '8. If the user only asks a question, read the relevant code and answer; do not edit files.',
       '9. Always reply in the same language the user writes in.',
+      ...extra,
       '',
       'Project layout (depth 2, ignored folders omitted):',
       tree,
@@ -161,8 +305,15 @@ export class AgentService {
       const think = Boolean(options.think && capabilities?.includes('thinking'));
 
       const workspace = await Workspace.open(project.path, projectService.getIgnorePatterns(project));
-      const ctx: ToolContext = { workspace, fileReads: session.fileReads };
-      const systemPrompt = await this.buildSystemPrompt(project.name, workspace);
+      const caps = await this.detectCapabilities();
+      const tools = this.toolsFor(caps);
+      const ctx: ToolContext = {
+        workspace,
+        fileReads: session.fileReads,
+        signal: controller.signal,
+        searchKnowledge: caps.knowledgeCollections ? (query, collection) => this.searchKnowledge(query, collection) : undefined,
+      };
+      const systemPrompt = await this.buildSystemPrompt(project.name, workspace, caps);
 
       if (session.messages.length === 0) {
         const firstLine = options.message.split('\n')[0].trim();
@@ -181,6 +332,7 @@ export class AgentService {
         const turn = await this.callModel(
           [{ role: 'system', content: systemPrompt }, ...session.messages],
           options.model,
+          tools,
           think,
           controller.signal,
           push,
@@ -219,7 +371,7 @@ export class AgentService {
           if (controller.signal.aborted) break;
           const name = call.function.name;
           const args = normalizeArgs(call.function.arguments);
-          const result = await this.runTool(session, ctx, name, args, push, update);
+          const result = await this.runTool(session, ctx, caps.commands, name, args, push, update);
           session.messages.push({ role: 'tool', tool_name: name, content: result });
         }
         await agentStore.save(session);
@@ -253,6 +405,7 @@ export class AgentService {
   private async callModel(
     messages: AgentMessage[],
     model: string,
+    tools: unknown[],
     think: boolean,
     signal: AbortSignal,
     push: (item: TimelineItem) => void,
@@ -261,7 +414,7 @@ export class AgentService {
     const stream = await ollamaService.streamChatRaw({
       model,
       messages,
-      tools: AGENT_TOOLS,
+      tools,
       options: { num_ctx: env.OLLAMA_NUM_CTX, temperature: 0.2 },
       ...(think ? { think: true } : {}),
     }, signal);
@@ -344,13 +497,14 @@ export class AgentService {
   /** Executa uma ferramenta, registra checkpoint e diff, e devolve o texto para o modelo. */
   private async runTool(
     session: AgentSession,
-    ctx: ToolContext,
+    baseCtx: ToolContext,
+    commandsEnabled: boolean,
     name: string,
     args: Record<string, unknown>,
     push: (item: TimelineItem) => void,
     update: (item: TimelineItem) => void
   ): Promise<string> {
-    const item: Extract<TimelineItem, { kind: 'tool' }> = {
+    const item: ToolItem = {
       kind: 'tool',
       id: randomUUID(),
       name,
@@ -361,10 +515,19 @@ export class AgentService {
     };
     push(item);
 
+    // A aprovação fica ligada a este item da timeline, onde a interface mostra os botões
+    const ctx: ToolContext = {
+      ...baseCtx,
+      requestApproval: commandsEnabled && baseCtx.signal
+        ? (command, cwd) => this.awaitApproval(session, item, command, cwd, baseCtx.signal!, update)
+        : undefined,
+    };
+
     try {
       const outcome = await executeTool(ctx, name, args);
       item.status = 'ok';
       item.summary = outcome.summary;
+      if (outcome.commandFailed) item.failed = true;
 
       if (outcome.change) {
         const diff = diffLines(outcome.change.before ?? '', outcome.change.after);

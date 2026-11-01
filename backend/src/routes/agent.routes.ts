@@ -9,4 +9,5 @@ agentRouter.get('/sessions/:id', (req, res) => agentController.get(req, res));
 agentRouter.delete('/sessions/:id', (req, res) => agentController.delete(req, res));
 agentRouter.post('/sessions/:id/run', (req, res) => agentController.run(req, res));
 agentRouter.post('/sessions/:id/stop', (req, res) => agentController.stop(req, res));
+agentRouter.post('/sessions/:id/approve', (req, res) => agentController.approve(req, res));
 agentRouter.post('/sessions/:id/revert', (req, res) => agentController.revert(req, res));

@@ -57,6 +57,15 @@ export class Workspace {
     return abs;
   }
 
+  /** Pasta dentro do projeto (para o cwd de comandos). */
+  async resolveDirectory(relPath: string): Promise<string> {
+    try {
+      return await this.resolveDir(relPath);
+    } catch (err) {
+      throw new ToolError(err instanceof Error ? err.message : String(err));
+    }
+  }
+
   private async resolveFile(relPath: string): Promise<string> {
     if (!relPath || !relPath.trim()) throw new ToolError('O parâmetro "path" é obrigatório');
     try {

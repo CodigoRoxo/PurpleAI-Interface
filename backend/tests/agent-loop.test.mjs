@@ -36,6 +36,8 @@ await new Promise(r => fake.listen(0, '127.0.0.1', r));
 const base = await fs.mkdtemp(path.join(os.tmpdir(), 'purpleai-loop-'));
 process.env.AGENT_DIR = path.join(base, 'agent');
 process.env.PROJECTS_DIR = path.join(base, 'projects');
+process.env.KNOWLEDGE_DIR = path.join(base, 'knowledge');
+process.env.DATA_DIR = path.join(base, 'conversations');
 process.env.OLLAMA_HOST = `http://127.0.0.1:${fake.address().port}`;
 
 const { agentService } = await import('../dist/services/agent/agent.service.js');
@@ -87,7 +89,7 @@ test('Loop - lê, edita dois arquivos, resume e registra checkpoints', async () 
   assert.equal((await agentStore.getCheckpoints(session.id)).length, 2);
 
   // O modelo recebeu as ferramentas e o resultado de cada uma no histórico
-  assert.equal(requests[0].tools.length, 6);
+  assert.deepEqual(requests[0].tools.map(t => t.function.name).slice(-1), ['run_command'], 'sem base ativa, search_knowledge não é oferecida');
   const lastRequest = requests.at(-1);
   assert.ok(lastRequest.messages.some(m => m.role === 'tool' && m.tool_name === 'edit_file'));
   assert.match(lastRequest.messages[0].content, /src\//, 'o prompt de sistema inclui a árvore do projeto');
@@ -144,4 +146,66 @@ test('Loop - recusa modelo sem suporte a ferramentas', async () => {
   const done = events.find(e => e.type === 'done');
   assert.equal(done.status, 'error');
   assert.match(done.message, /não suporta ferramentas/);
+});
+
+test('Loop - comando espera aprovação; "sempre permitir" libera as próximas vezes', async () => {
+  const root = path.join(base, 'app4');
+  await fs.mkdir(root, { recursive: true });
+  const project = await projectService.createProject('app4', root);
+  const command = 'node -e "console.log(123)"';
+
+  const runOnce = async (respond) => {
+    const session = await agentStore.create(project.id, 'fake');
+    script.push(
+      [{ message: { content: '', tool_calls: [call('run_command', { command })] }, done: true }],
+      [{ message: { content: 'Build ok.' }, done: true }],
+    );
+    let askedApproval = false;
+    await agentService.run({ sessionId: session.id, message: 'compile', model: 'fake' }, e => {
+      if (e.type === 'timeline' && e.item.kind === 'tool' && e.item.status === 'awaiting') {
+        askedApproval = true;
+        setTimeout(() => respond(session.id, e.item.id), 10);
+      }
+    });
+    return { session: await agentStore.get(session.id), askedApproval };
+  };
+
+  // 1ª vez: o usuário recusa
+  const denied = await runOnce((sid, step) => agentService.resolveApproval(sid, step, false));
+  const deniedTool = denied.session.timeline.find(t => t.kind === 'tool');
+  assert.equal(deniedTool.approval, 'denied');
+  assert.equal(deniedTool.status, 'error');
+  assert.ok(denied.askedApproval);
+
+  // 2ª vez: aprova com "sempre permitir"
+  const approved = await runOnce((sid, step) => agentService.resolveApproval(sid, step, true, true));
+  const approvedTool = approved.session.timeline.find(t => t.kind === 'tool');
+  assert.equal(approvedTool.approval, 'approved');
+  assert.match(approvedTool.output, /123/);
+  assert.deepEqual((await projectService.getProject(project.id)).settings.allowedCommands, [command]);
+
+  // 3ª vez: roda direto, sem pedir
+  const auto = await runOnce(() => assert.fail('não deveria pedir aprovação'));
+  const autoTool = auto.session.timeline.find(t => t.kind === 'tool');
+  assert.equal(autoTool.approval, 'auto_approved');
+  assert.equal(autoTool.status, 'ok');
+});
+
+test('Loop - parar enquanto espera aprovação encerra sem executar', async () => {
+  const root = path.join(base, 'app5');
+  await fs.mkdir(root, { recursive: true });
+  const project = await projectService.createProject('app5', root);
+  const session = await agentStore.create(project.id, 'fake');
+  script.push([{ message: { content: '', tool_calls: [call('run_command', { command: 'node -e "require(\'fs\').writeFileSync(\'ran.txt\', \'x\')"' })] }, done: true }]);
+
+  const events = [];
+  await agentService.run({ sessionId: session.id, message: 'rode', model: 'fake' }, e => {
+    events.push(e);
+    if (e.type === 'timeline' && e.item.kind === 'tool' && e.item.status === 'awaiting') {
+      setTimeout(() => agentService.stop(session.id), 10);
+    }
+  });
+  assert.equal(events.find(e => e.type === 'done').status, 'aborted');
+  await assert.rejects(fs.access(path.join(root, 'ran.txt')), 'o comando não rodou');
+  script.length = 0;
 });

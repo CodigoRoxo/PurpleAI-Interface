@@ -357,6 +357,17 @@ export class ProjectService {
     return { success: true, backupCreated, chunksCount: newChunksCount };
   }
 
+  async allowCommand(projectId: string, command: string): Promise<void> {
+    const project = await this.getProject(projectId);
+    if (!project) return;
+    project.settings = project.settings || { ignorePatterns: [...this.DEFAULT_IGNORES] };
+    const allowed = new Set(project.settings.allowedCommands || []);
+    allowed.add(command);
+    project.settings.allowedCommands = [...allowed];
+    project.updatedAt = Date.now();
+    await this.persist();
+  }
+
   getIgnorePatterns(project: Project): string[] {
     return project.settings?.ignorePatterns || this.DEFAULT_IGNORES;
   }

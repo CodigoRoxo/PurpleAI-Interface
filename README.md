@@ -173,6 +173,8 @@ Selecione qualquer modelo disponível no seu Ollama através do dropdown superio
 2. Descreva a tarefa, por exemplo: *"renomeie a função `sum` para `add` e atualize quem a usa"*.
 3. O agente trabalha em loop com ferramentas: lista pastas, busca com grep, **lê os arquivos inteiros antes de editar** e aplica edições exatas (busca e substitui) em quantos arquivos forem necessários.
 4. Cada passo aparece na timeline com o diff. Qualquer edição pode ser revertida com **Desfazer até aqui**, sem arquivos `.bak` espalhados.
+5. **Compila e corrige sozinho:** o agente pode rodar build e testes (`npm run build`, `msbuild`, `cmake`...) e corrigir os erros até passar. Cada comando pede sua aprovação (**Executar**, **Sempre permitir este comando** ou **Recusar**). Ele nunca carrega drivers ou serviços: teste em execução é com você, numa VM.
+6. **Consulta seus livros:** com a Base de Conhecimento ativa, o agente usa a ferramenta `search_knowledge` para conferir APIs e conceitos nos seus documentos antes de afirmar algo, e cita fonte e página.
 
 Use um modelo com suporte a *tool calling* (ex.: `qwen3`, `qwen2.5-coder`, `llama3.1`+). O botão **Pensar** ativa o raciocínio estendido em modelos que suportam (mais lento, costuma errar menos).
 

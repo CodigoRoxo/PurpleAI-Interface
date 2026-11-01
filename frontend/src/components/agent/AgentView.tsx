@@ -23,6 +23,9 @@ import {
   AlertCircle,
   AlertTriangle,
   X,
+  SquareTerminal,
+  Library,
+  ShieldCheck,
 } from 'lucide-react';
 import { Project } from '../../types/project';
 import { AgentToolItem, DiffLine, TimelineItem } from '../../types/agent';
@@ -42,7 +45,44 @@ const TOOL_ICONS: Record<string, React.ElementType> = {
   glob: FileSearch,
   edit_file: FilePen,
   write_file: FilePlus2,
+  run_command: SquareTerminal,
+  search_knowledge: Library,
 };
+
+const ApprovalCard: React.FC<{
+  item: AgentToolItem;
+  onApprove: (stepId: string, approved: boolean, remember?: boolean) => void;
+}> = ({ item, onApprove }) => (
+  <div className="px-3 pb-3 space-y-2">
+    <div className="text-[11px] text-amber-200/90">
+      O agente quer executar este comando{item.cwd && item.cwd !== '.' ? ` em ${item.cwd}` : ' na pasta do projeto'}:
+    </div>
+    <pre className="text-xs font-mono text-amber-100 bg-black/50 border border-amber-800/40 rounded-lg px-3 py-2 overflow-x-auto whitespace-pre-wrap">
+      {item.command}
+    </pre>
+    <div className="flex flex-wrap gap-2">
+      <button
+        onClick={() => onApprove(item.id, true)}
+        className="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-semibold"
+      >
+        Executar
+      </button>
+      <button
+        onClick={() => onApprove(item.id, true, true)}
+        className="px-3 py-1.5 rounded-lg bg-[#141226] border border-emerald-800/60 hover:border-emerald-600 text-emerald-300 text-xs"
+        title="Executa agora e não pergunta de novo por este comando exato neste projeto"
+      >
+        Sempre permitir este comando
+      </button>
+      <button
+        onClick={() => onApprove(item.id, false)}
+        className="px-3 py-1.5 rounded-lg bg-[#141226] border border-rose-800/60 hover:border-rose-600 text-rose-300 text-xs"
+      >
+        Recusar
+      </button>
+    </div>
+  </div>
+);
 
 const SUGGESTIONS = [
   'Explique a estrutura deste projeto',
@@ -77,13 +117,19 @@ const ToolStep: React.FC<{
   item: AgentToolItem;
   canRevert: boolean;
   onRevert: (stepId: string) => void;
-}> = ({ item, canRevert, onRevert }) => {
+  onApprove: (stepId: string, approved: boolean, remember?: boolean) => void;
+}> = ({ item, canRevert, onRevert, onApprove }) => {
   const [open, setOpen] = useState(false);
   const Icon = TOOL_ICONS[item.name] || Bot;
   const hasDetails = Boolean(item.diff?.length || item.output || Object.keys(item.args).length);
+  const awaiting = item.status === 'awaiting';
 
   return (
-    <div className={`rounded-lg border ${item.reverted ? 'border-[#1c1a32] opacity-50' : 'border-[#232042]'} bg-[#0c0b16]/80`}>
+    <div
+      className={`rounded-lg border bg-[#0c0b16]/80 ${
+        awaiting ? 'border-amber-600/60 shadow-[0_0_14px_rgba(245,158,11,0.15)]' : item.reverted ? 'border-[#1c1a32] opacity-50' : 'border-[#232042]'
+      }`}
+    >
       <div className="flex items-center gap-2 px-3 py-2">
         <button
           onClick={() => hasDetails && setOpen(o => !o)}
@@ -95,12 +141,17 @@ const ToolStep: React.FC<{
             <span className="w-3.5" />
           )}
           <Icon className={`w-4 h-4 shrink-0 ${item.checkpoint ? 'text-amber-300' : 'text-purple-accent'}`} />
-          <span className={`text-xs truncate ${item.status === 'error' ? 'text-rose-300' : 'text-slate-300'} ${item.reverted ? 'line-through' : ''}`}>
-            {item.summary}
+          <span className={`text-xs truncate ${item.status === 'error' ? 'text-rose-300' : item.failed ? 'text-amber-300' : 'text-slate-300'} ${item.reverted ? 'line-through' : ''}`}>
+            {awaiting ? 'Aguardando sua aprovação para executar um comando' : item.summary}
           </span>
         </button>
+        {item.approval === 'auto_approved' && (
+          <span title="Comando liberado com 'Sempre permitir'"><ShieldCheck className="w-3.5 h-3.5 text-emerald-500/70 shrink-0" /></span>
+        )}
         {item.status === 'running' && <Loader2 className="w-3.5 h-3.5 text-purple-400 animate-spin shrink-0" />}
-        {item.status === 'ok' && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
+        {awaiting && <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />}
+        {item.status === 'ok' && !item.failed && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
+        {item.status === 'ok' && item.failed && <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />}
         {item.status === 'error' && <AlertCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />}
         {item.checkpoint && !item.reverted && canRevert && (
           <button
@@ -117,9 +168,11 @@ const ToolStep: React.FC<{
         {item.reverted && <span className="text-[10px] uppercase tracking-wider text-slate-500 shrink-0">desfeito</span>}
       </div>
 
-      {open && (
+      {awaiting && <ApprovalCard item={item} onApprove={onApprove} />}
+
+      {open && !awaiting && (
         <div className="px-3 pb-3 space-y-2">
-          {Object.keys(item.args).length > 0 && !item.diff && (
+          {Object.keys(item.args).length > 0 && !item.diff && !item.command && (
             <pre className="text-[11px] font-mono text-slate-400 bg-[#07060d] rounded-lg p-2 overflow-x-auto whitespace-pre-wrap">
               {JSON.stringify(item.args, null, 2)}
             </pre>
@@ -155,7 +208,8 @@ const TimelineEntry: React.FC<{
   item: TimelineItem;
   canRevert: boolean;
   onRevert: (stepId: string) => void;
-}> = ({ item, canRevert, onRevert }) => {
+  onApprove: (stepId: string, approved: boolean, remember?: boolean) => void;
+}> = ({ item, canRevert, onRevert, onApprove }) => {
   switch (item.kind) {
     case 'user':
       return (
@@ -180,7 +234,7 @@ const TimelineEntry: React.FC<{
     case 'thinking':
       return <div className="pl-10"><ThinkingBlock text={item.text} /></div>;
     case 'tool':
-      return <div className="pl-10"><ToolStep item={item} canRevert={canRevert} onRevert={onRevert} /></div>;
+      return <div className="pl-10"><ToolStep item={item} canRevert={canRevert} onRevert={onRevert} onApprove={onApprove} /></div>;
     case 'status': {
       const styles = {
         completed: { icon: CheckCircle2, cls: 'text-emerald-400', label: 'Tarefa concluída' },
@@ -212,7 +266,7 @@ const TimelineEntry: React.FC<{
 };
 
 export const AgentView: React.FC<AgentViewProps> = ({ projects, activeProjectId, onSelectProject, selectedModel }) => {
-  const { sessions, session, running, error, clearError, selectSession, newSession, send, stop, revert, deleteSession } =
+  const { sessions, session, running, error, clearError, selectSession, newSession, send, stop, approve, revert, deleteSession } =
     useAgent(activeProjectId, selectedModel);
   const [input, setInput] = useState('');
   const [think, setThink] = useState(false);
@@ -323,14 +377,21 @@ export const AgentView: React.FC<AgentViewProps> = ({ projects, activeProjectId,
               </div>
             ) : (
               session.timeline.map(item => (
-                <TimelineEntry key={item.id} item={item} canRevert={!running} onRevert={revert} />
+                <TimelineEntry key={item.id} item={item} canRevert={!running} onRevert={revert} onApprove={approve} />
               ))
             )}
             {running && (
-              <div className="pl-10 flex items-center gap-2 text-xs text-purple-300">
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                Trabalhando…
-              </div>
+              session?.timeline.some(t => t.kind === 'tool' && t.status === 'awaiting') ? (
+                <div className="pl-10 flex items-center gap-2 text-xs text-amber-300">
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                  Aguardando sua aprovação…
+                </div>
+              ) : (
+                <div className="pl-10 flex items-center gap-2 text-xs text-purple-300">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  Trabalhando…
+                </div>
+              )
             )}
             <div ref={bottomRef} />
           </div>

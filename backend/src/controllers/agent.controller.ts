@@ -74,6 +74,20 @@ export class AgentController {
     res.json({ stopped: agentService.stop(req.params.id) });
   }
 
+  async approve(req: Request, res: Response): Promise<void> {
+    const { stepId, approved, remember } = req.body;
+    if (!stepId || typeof stepId !== 'string' || typeof approved !== 'boolean') {
+      res.status(400).json({ error: 'stepId e approved são obrigatórios' });
+      return;
+    }
+    const ok = await agentService.resolveApproval(req.params.id, stepId, approved, Boolean(remember));
+    if (!ok) {
+      res.status(404).json({ error: 'Nenhuma aprovação pendente para esta etapa' });
+      return;
+    }
+    res.json({ ok: true });
+  }
+
   async revert(req: Request, res: Response): Promise<void> {
     const { stepId } = req.body;
     if (!stepId || typeof stepId !== 'string') {

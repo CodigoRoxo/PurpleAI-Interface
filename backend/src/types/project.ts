@@ -21,6 +21,8 @@ export interface ProjectStats {
 
 export interface ProjectSettings {
   ignorePatterns: string[];
+  /** Comandos que o agente pode rodar sem pedir aprovação de novo */
+  allowedCommands?: string[];
 }
 
 export interface ProjectFile {
